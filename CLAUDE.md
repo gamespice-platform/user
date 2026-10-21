@@ -28,7 +28,7 @@ Paths except `examples/` are in `addons/dot_user/`.
 
 ## Running and testing
 
-The family's two steps ([game-dev/CLAUDE.md](../../CLAUDE.md#validating-anything)), then `timeout 60 godot --headless --path . res://examples/user_demo.tscn` (exits non-zero on any failure; `CHECKS` is the total). Run the check-only pass first: a scene whose script fails to parse hangs rather than exiting.
+The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), then `timeout 60 godot --headless --path . res://examples/user_demo.tscn` (exits non-zero on any failure; `CHECKS` is the total). Run the check-only pass first: a scene whose script fails to parse hangs rather than exiting.
 
 - `_test_store_contract` runs one sequence against the memory and local stores and requires the same answers. **Add any new store to it**, so a bug shows up as a difference.
 - **Add a case for any change to `DotUserScope` or `DotUserName`**: there a bug is a vulnerability, not a crash.
