@@ -85,7 +85,7 @@ By default an authenticated player cannot rename themselves. Their name comes fr
 
 ```bash
 godot --headless --path . --import
-godot --headless --path . res://examples/user_demo.tscn     # 153 checks
+godot --headless --path . res://examples/user_demo.tscn     # user_demo
 ```
 
 Exits non-zero on failure.
