@@ -12,10 +12,8 @@ var _failed := 0
 var _failures := PackedStringArray()
 
 
-## A stand-in for DotAuthIdentity, which is not installed here.
-##
-## dot-user duck-types the identity on purpose, so this is not a shim around a
-## missing dependency — it is the whole contract: uid, display_name, is_guest.
+## A stand-in for DotAuthIdentity, which is not installed here. dot-user duck-types the
+## identity on purpose, so this is the whole contract: uid, display_name, is_guest.
 class FakeIdentity extends RefCounted:
 	var uid: String = ""
 	var display_name: String = ""
@@ -384,8 +382,5 @@ func _test_profile_views(p: DotUserProfile) -> void:
 
 
 
-## Runs the same sequence against any store.
-##
-## Both implementations answer identically or one of them is wrong; running the
-## sequence twice is how a bug in the file handling shows up as a difference rather
-## than as a plausible-looking result.
+## Runs the same sequence against any store. Both implementations must answer identically,
+## so a file-handling bug shows up as a difference.
