@@ -157,9 +157,10 @@ func setup() -> DotResult:
 			{"store": store._store_name(), "error": str(opened.error)}
 		)
 
-	_write_limiter = DotRateLimiter.new(
-		float(config.writes_per_minute) / 60.0, float(config.writes_per_minute)
-	)
+	if config.writes_per_minute > 0:
+		_write_limiter = DotRateLimiter.new(
+			float(config.writes_per_minute) / 60.0, float(config.writes_per_minute)
+		)
 
 	if register_service:
 		_registered_name = (

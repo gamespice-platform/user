@@ -67,23 +67,23 @@ extends DotConfig
 ## A player who reconnects inside this window skips the store entirely, which matters
 ## on a map change: without it, a thirty-player server does thirty store reads in the
 ## few seconds when it is also loading a level.
-@export_range(0.0, 3600.0, 5.0) var cache_ttl_sec: float = 300.0
+@export_range(0.0, 3600.0, 5.0, "or_greater") var cache_ttl_sec: float = 300.0
 
 ## Most profiles held in memory at once. 0 is unlimited.
-@export_range(0, 100000, 64) var max_cached: int = 4096
+@export_range(0, 100000, 64, "or_greater") var max_cached: int = 4096
 
-## Profile writes allowed per player per minute.
+## Profile writes allowed per player per minute. 0 means unlimited.
 ##
 ## A client can ask for a name change as fast as it can send packets, and each one is
 ## a store write. Without a limit that is a way to make the server hammer a backbone
 ## on the player's behalf.
-@export_range(1, 600, 1) var writes_per_minute: int = 6
+@export_range(0, 600, 1, "or_greater") var writes_per_minute: int = 6
 
 ## Seconds to wait for the store before giving up on a join.
 ##
 ## A player must not be held at the profile stage indefinitely because a backbone is
 ## slow. Past this they proceed with a session-only profile and a warning.
-@export_range(0.5, 60.0, 0.5) var resolve_timeout_sec: float = 5.0
+@export_range(0.5, 60.0, 0.5, "or_greater") var resolve_timeout_sec: float = 5.0
 
 @export_group("Names")
 

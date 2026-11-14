@@ -65,7 +65,7 @@ It is stable for that player on that server, so bans and profiles work, differen
 | `read_only` | false | Never write. |
 | `cache_ttl_sec` | 300 | How long a cached profile is trusted. |
 | `max_cached` | 4096 | Profiles kept in the cache. |
-| `writes_per_minute` | 6 | Profile writes allowed per player. |
+| `writes_per_minute` | 6 | Profile writes allowed per player; 0 is unlimited. |
 | `resolve_timeout_sec` | 5 | How long a resolve may take. |
 
 ## Display names
