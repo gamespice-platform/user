@@ -1,10 +1,10 @@
-# dot-user
+# GameSpice User
 
 Player profiles that follow a person between servers without letting those servers correlate them: a keyed per-scope id, hostile-input-safe display names, bounded preferences, and stores (memory, local files, backbone HTTP).
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to profiles.
 
-**The distributable is `addons/dot_user/`.** It requires [dot-core](../dot-core) and nothing else. dot-auth is not a dependency; identities are duck-typed.
+**The distributable is `addons/dot_user/`.** It requires [GameSpice Core](../dot-core) and nothing else. dot-auth is not a dependency; identities are duck-typed.
 
 ## Read before
 
@@ -46,6 +46,6 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 - A server never holds a player's own account token. [design](docs/design.md#storage-rules-shared-with-dot-servers-ban-store)
 - `DotUserStoreBackbone` parents the `DotHttp` it builds to the root in `_open` and frees it in `_close`: an orphan `DotHttp` fails every request with engine error 3 (Unconfigured). `open()` runs one attempt at a time. [design](docs/design.md#the-backbone-protocol)
 - `DotUserProfile.validate` runs on read and write; only `to_public_dict` is relayed. [design](docs/design.md#bounds-and-why-they-are-not-optional)
-- Never import dot-auth; `register_service` is on by default here. [design](docs/design.md#coupling-nothing-is-imported)
+- Never import GameSpice Auth; `register_service` is on by default here. [design](docs/design.md#coupling-nothing-is-imported)
 
 Deliberately not here: friends, parties, presence, save data, global name uniqueness, password hashing, profile history. [design](docs/design.md#deliberately-not-here)

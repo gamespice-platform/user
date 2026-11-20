@@ -22,7 +22,7 @@ The separator matters and is easy to leave out: without it, `("ab", "cd")` and `
 
 ## Where the scope key lives, and what breaks if it moves
 
-Normally on a publisher's issuer: the component that mints dot-auth connect tickets, which already holds a private key and scopes tickets by audience.
+Normally on a publisher's issuer: the component that mints GameSpice Auth connect tickets, which already holds a private key and scopes tickets by audience.
 
 A standalone server with no issuer generates its own on first run, and that key must **survive**: regenerating it renames every profile, so every player loses their name, avatar and settings at once and it looks like a database wipe. `DotUserManager._resolve_scope` therefore generates only when the file is *absent*, and refuses when a file exists but cannot be read rather than quietly replacing it. The asymmetry is deliberate.
 
@@ -47,9 +47,9 @@ A display name is shown to every other player and chosen by the person it is sho
 
 **It says nothing about whether a name is offensive.** That is policy, it differs per community, and `DotUserManager.name_filter` is the hook.
 
-## Storage rules, shared with dot-server's ban store
+## Storage rules, shared with GameSpice Server's ban store
 
-Both solve the same problem (a per-player record a community running eight servers wants to share), so `DotUserStore` deliberately mirrors dot-server's `DotBanStore`, including its two hard-learned rules:
+Both solve the same problem (a per-player record a community running eight servers wants to share), so `DotUserStore` deliberately mirrors GameSpice Server's `DotBanStore`, including its two hard-learned rules:
 
 - **Loads may be slow; lookups on the join path may not.** A remote store is queried at startup and on writes, never while a player waits to spawn. A profile stays cached after the player leaves so a map change does not re-read for thirty people at once.
 - **A failed read keeps whatever is in force.** If the store cannot answer, the player gets a *session-only* profile, marked by `created_at == 0`, which `save()` refuses to persist (`DotUserManager.is_persistable`). Writing a fresh profile instead would overwrite the real one on disconnect, turning a network blip into data loss.
@@ -62,7 +62,7 @@ Both solve the same problem (a per-player record a community running eight serve
 
 ## The backbone protocol
 
-Four endpoints under the integration base URL, all addressed by the scoped key (the one dot-auth's introspection puts in the `scoped_key` claim, which `key_for` prefers for exactly this reason: a key derived from a local secret is one the backbone can never resolve):
+Four endpoints under the integration base URL, all addressed by the scoped key (the one GameSpice Auth's introspection puts in the `scoped_key` claim, which `key_for` prefers for exactly this reason: a key derived from a local secret is one the backbone can never resolve):
 
 | Request | Answer |
 | --- | --- |
@@ -73,7 +73,7 @@ Four endpoints under the integration base URL, all addressed by the scoped key (
 
 website-city implements it (`PROFILE_READ` / `PROFILE_WRITE` scopes, its `docs/api/integration-api.md`). A key resolves only in the credential's own scope: an app-bound credential shares profiles across that app's servers, a server-bound one keeps them to the server.
 
-**Who uses it.** dot-platform's `DotPlatformIdentity` builds this store on the server's integration credential and routes only keys the site issued to it (the `scoped_key` claim); a key derived from the local secret is one the backbone answers 404 for, so it stays on the local store (dot-platform's docs/design.md). Enrolled server credentials hold `PROFILE_READ`/`PROFILE_WRITE`.
+**Who uses it.** GameSpice Platform's `DotPlatformIdentity` builds this store on the server's integration credential and routes only keys the site issued to it (the `scoped_key` claim); a key derived from the local secret is one the backbone answers 404 for, so it stays on the local store (GameSpice Platform's docs/design.md). Enrolled server credentials hold `PROFILE_READ`/`PROFILE_WRITE`.
 
 **The HTTP client has to be in the tree.** `DotHttp` is a Node that sends through `HTTPRequest` children, and the store is a `RefCounted`. It used to build an orphan client, so every request failed with engine error 3 (Unconfigured) before reaching the network and every player got a session-only profile; no check in the suite ever opened this store, so nothing noticed. `_open` now parents the client it builds to the root (deferred, then awaits a frame, since `open()` can run inside somebody's `_ready`) and `_close` frees it; a client the caller supplies is the caller's. The suite's "backbone store transport" section proves it against a closed loopback port. Because `_open` now suspends, `DotUserStore.open()` runs one attempt at a time and a second caller waits for its result: a manager's `_ready` and its host's `setup()` both open the store, and two overlapping attempts queued the same client onto the root twice (an engine error on every boot).
 
@@ -85,9 +85,9 @@ A profile is relayed to every other player in the match, so an unbounded one is 
 
 ## Coupling: nothing is imported
 
-dot-auth is **not** a dependency. The identity passed to `resolve()` is duck-typed: anything with `uid`, `display_name` and `is_guest`, which `DotAuthIdentity` and dot-server's `DotGuestIdentity` both provide. A hard dependency either way makes both harder to adopt, and this addon has to work on a server with no authentication at all.
+GameSpice Auth is **not** a dependency. The identity passed to `resolve()` is duck-typed: anything with `uid`, `display_name` and `is_guest`, which `DotAuthIdentity` and GameSpice Server's `DotGuestIdentity` both provide. A hard dependency either way makes both harder to adopt, and this addon has to work on a server with no authentication at all.
 
-`DotUserManager` registers as `dot_user_manager` in `DotRegistry`, which is how dot-user-avatar finds it without importing anything. `register_service` defaults to **on** here, unlike most of the family, because a profile manager genuinely is one per process and its consumers have no other way to find it; `service_scope` covers two in one process.
+`DotUserManager` registers as `dot_user_manager` in `DotRegistry`, which is how GameSpice User Avatar finds it without importing anything. `register_service` defaults to **on** here, unlike most of the family, because a profile manager genuinely is one per process and its consumers have no other way to find it; `service_scope` covers two in one process.
 
 ## Deliberately not here
 

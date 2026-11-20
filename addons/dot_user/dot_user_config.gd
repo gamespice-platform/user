@@ -89,8 +89,8 @@ extends DotConfig
 
 ## Let a player choose their own display name.
 ##
-## [b]Off for authenticated players is the safe default[/b] and matches dot-auth and
-## dot-server: an account's name comes from the account, and a player who can override
+## [b]Off for authenticated players is the safe default[/b] and matches GameSpice Auth and
+## GameSpice Server: an account's name comes from the account, and a player who can override
 ## it can appear as somebody else. Guests have no name of their own, so they must be
 ## able to pick one.
 @export var allow_name_changes: bool = false

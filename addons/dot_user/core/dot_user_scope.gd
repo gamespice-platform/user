@@ -31,9 +31,9 @@ extends RefCounted
 ##   spelled the same way as "recognise me everywhere". See [method shared].
 ##
 ## [b]Where this runs.[/b] Normally on a publisher's issuer, the same component that
-## mints dot-auth connect tickets, which already holds a private key and already
+## mints GameSpice Auth connect tickets, which already holds a private key and already
 ## scopes tickets by audience. A game server consuming a scoped id needs none of this.
-## It is here rather than in dot-auth because the scoping is a profile concern: it
+## It is here rather than in GameSpice Auth because the scoping is a profile concern: it
 ## decides which profiles are the same profile, and dot-auth does not have profiles.
 ##
 ## A standalone server with no issuer derives its own scope from a local secret, which

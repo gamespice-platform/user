@@ -19,8 +19,8 @@ extends DotUserStore
 ## game server running this holds a server token scoped to reading and writing
 ## profiles for players currently connected to it, and nothing more. The moment a
 ## server can present a player's own account token, every operator has a live
-## credential for every player's whole account, which is the exact failure dot-auth's
-## ticket flow exists to prevent. See dot-auth's docs/tickets.md.
+## credential for every player's whole account, which is the exact failure GameSpice Auth's
+## ticket flow exists to prevent. See GameSpice Auth's docs/tickets.md.
 
 const BACKBONE_CHANNEL := "user.store.backbone"
 

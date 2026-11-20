@@ -13,17 +13,17 @@ extends Node
 ##     var profile: DotUserProfile = resolved.value
 ## [/codeblock]
 ##
-## [b]No autoload, and dot-auth is not imported.[/b] The identity a caller passes is
+## [b]No autoload, and GameSpice Auth is not imported.[/b] The identity a caller passes is
 ## duck-typed: anything with [code]uid[/code], [code]display_name[/code] and
 ## [code]is_guest[/code] works, which is what [code]DotAuthIdentity[/code] and
-## dot-server's [code]DotGuestIdentity[/code] both provide. A hard dependency in
+## GameSpice Server's [code]DotGuestIdentity[/code] both provide. A hard dependency in
 ## either direction makes both harder to adopt, and the family rule is that only
-## dot-core is one.
+## GameSpice Core is one.
 ##
 ## [b]The join path never touches the network twice.[/b] A resolved profile stays
 ## cached for [member DotUserConfig.cache_ttl_sec] after the player leaves, so a
 ## reconnect or a map change does not re-read the store for everyone at once. That is
-## the same rule dot-server's ban store follows and for the same reason: loads may be
+## the same rule GameSpice Server's ban store follows and for the same reason: loads may be
 ## slow, lookups on the join path may not.
 ##
 ## [b]A failed read never destroys a profile.[/b] If the store cannot answer, the
@@ -68,7 +68,7 @@ signal resolve_degraded(user_key: String, reason: String)
 ## Register in [DotRegistry] under [constant SERVICE].
 ##
 ## On by default, unlike most of the family: a profile manager is genuinely one per
-## process, and the components that want it — dot-server's session flow, an avatar
+## process, and the components that want it — GameSpice Server's session flow, an avatar
 ## addon — have no other way to find it without importing this.
 @export var register_service: bool = true
 
@@ -287,7 +287,7 @@ func key_for(identity: Object) -> DotResult:
 			uid
 		)
 
-	# [b]A key the backbone issued wins over one derived here.[/b] dot-auth's scoped
+	# [b]A key the backbone issued wins over one derived here.[/b] GameSpice Auth's scoped
 	# introspection puts the player's key for THIS server in the `scoped_key` claim —
 	# minted by the site, for the scope the server's own credential names. A key derived
 	# from this server's local secret is a perfectly good pseudonym and one the backbone
@@ -553,7 +553,7 @@ func save(profile: DotUserProfile) -> DotResult:
 ##
 ## [b]Refused for an authenticated player unless the config opens it.[/b] An account's
 ## name comes from the account; a player who can override it can appear as somebody
-## else, which is the impersonation dot-auth and dot-server both refuse for the same
+## else, which is the impersonation GameSpice Auth and GameSpice Server both refuse for the same
 ## reason.
 func set_display_name(
 	profile: DotUserProfile,

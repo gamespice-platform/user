@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Where profiles live. Subclass to put them somewhere else.
 ##
-## Deliberately shaped like [code]DotBanStore[/code] in dot-server, including its two
+## Deliberately shaped like [code]DotBanStore[/code] in GameSpice Server, including its two
 ## hard-won rules, because the two solve the same problem: a per-player record that a
 ## community running eight servers wants to share.
 ##

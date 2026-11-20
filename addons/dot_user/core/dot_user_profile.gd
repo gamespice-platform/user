@@ -57,7 +57,7 @@ const MAX_LOCALE := 16
 ## The name shown to other players. Sanitised and validated by [DotUserName].
 @export var display_name: String = ""
 
-## Which avatar document to render. Resolved by dot-user-avatar, if present.
+## Which avatar document to render. Resolved by GameSpice User Avatar, if present.
 ##
 ## A reference, not the avatar: a profile that embedded the document would have to be
 ## re-sent whenever a hat changed, and a dedicated server would have to understand
@@ -85,8 +85,8 @@ const MAX_LOCALE := 16
 ## Whether the player has finished first-time setup.
 ##
 ## What a join flow branches on: a player who is signed in but has not been through
-## the avatar editor is held at dot-server's PROFILE signon stage rather than spawned,
-## and dot-platform refuses them there under `require_avatar`; see dot-platform's
+## the avatar editor is held at GameSpice Server's PROFILE signon stage rather than spawned,
+## and GameSpice Platform refuses them there under `require_avatar`; see GameSpice Platform's
 ## docs/design.md ("Admission gates the spawn").
 @export var onboarded: bool = false
 

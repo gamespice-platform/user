@@ -1,6 +1,6 @@
 extends Node
 
-## Shared counters, assertions and the first sections of the dot-user self-test.
+## Shared counters, assertions and the first sections of the GameSpice User self-test.
 
 const SCOPE_KEY := "user://test_scope.key"
 const PROFILE_DIR := "user://test_profiles"
@@ -12,7 +12,7 @@ var _failed := 0
 var _failures := PackedStringArray()
 
 
-## A stand-in for DotAuthIdentity, which is not installed here. dot-user duck-types the
+## A stand-in for DotAuthIdentity, which is not installed here. GameSpice User duck-types the
 ## identity on purpose, so this is the whole contract: uid, display_name, is_guest.
 class FakeIdentity extends RefCounted:
 	var uid: String = ""
@@ -20,7 +20,7 @@ class FakeIdentity extends RefCounted:
 	var is_guest: bool = false
 	var claims: Dictionary = {}
 
-	## What dot-auth's scoped introspection produces: no account id, the backbone's key.
+	## What GameSpice Auth's scoped introspection produces: no account id, the backbone's key.
 	static func site(key: String, name: String) -> FakeIdentity:
 		var i := FakeIdentity.new()
 		i.uid = "tmc:%s" % key
