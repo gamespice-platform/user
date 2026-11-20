@@ -1,4 +1,4 @@
-[![User - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/215-dot-user)
+[![User - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/10-gs-user)
 
 Player profiles that follow a person between servers, without letting those servers work out it is the same person. A profile holds a display name, an avatar reference and preferences. Storage is pluggable: a JSON directory, an in-memory store, or an open HTTP back end anyone can self-host. A profile is resolved once on join and cached.
 
