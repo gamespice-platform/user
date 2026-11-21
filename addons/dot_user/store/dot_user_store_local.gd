@@ -27,13 +27,14 @@ var directory: String = "user://profiles"
 ## parse on the next read. With the manager's "a failed read keeps what is in force"
 ## rule that is survivable, but the profile is still gone.
 ##
-## Passed through to [method DotPaths.write_json], which already does the temporary
-## file, the rename and the browser's filesystem flush. Re-implementing it here was
-## the first version of this file and was wrong twice: it forgot that
-## [method DirAccess.rename] does not overwrite on every platform, and it forgot
-## [method DotWeb.sync_filesystem], so every profile written on a web build was lost
-## when the tab closed.
+## [DotSaveStoreFile] does the temporary file, the rename and the browser's filesystem
+## flush. Re-implementing it here was the first version of this file and was wrong
+## twice: it forgot that [method DirAccess.rename] does not overwrite on every platform,
+## and it forgot [method DotWeb.sync_filesystem], so every profile written on a web build
+## was lost when the tab closed.
 var atomic_writes: bool = true
+
+var _files: DotSaveStoreFile
 
 
 static func at(path: String) -> DotUserStoreLocal:
@@ -59,13 +60,24 @@ func _open() -> DotResult:
 	return DotResult.success(true)
 
 
+## The file store under this one, with the folder and write mode as they stand now.
+func files() -> DotSaveStoreFile:
+	if _files == null:
+		_files = DotSaveStoreFile.new()
+		_files.suffix = ".json"
+		_files.key_check = func(key: String) -> bool: return DotPaths.safe_relative(key + ".json").ok
+	_files.directory = directory
+	_files.atomic = atomic_writes
+	return _files
+
+
 func _path_for(user_key: String) -> DotResult:
 	var relative := DotPaths.safe_relative("%s.json" % user_key)
 
 	if not relative.ok:
 		return relative.wrap("That profile key is not a usable filename.")
 
-	return DotResult.success("%s/%s" % [directory, relative.value])
+	return DotResult.success(files().path_for(user_key))
 
 
 func _fetch(user_key: String) -> DotResult:
@@ -106,9 +118,7 @@ func _store(profile: DotUserProfile) -> DotResult:
 	if not path.ok:
 		return path
 
-	var written := DotPaths.write_json(
-		path.value, profile.to_dict(), true, atomic_writes
-	)
+	var written := files().write(profile.user_key, JSON.stringify(profile.to_dict(), "\t"))
 
 	if not written.ok:
 		return written.wrap("Could not write the profile.")
@@ -122,29 +132,14 @@ func _remove(user_key: String) -> DotResult:
 	if not path.ok:
 		return path
 
-	var file: String = path.value
-
-	if not FileAccess.file_exists(file):
+	if not FileAccess.file_exists(path.value):
 		return DotResult.success(true)
 
-	var dir := DirAccess.open(directory)
+	var removed := files().remove(user_key)
 
-	if dir == null:
-		return DotResult.fail(
-			DotError.CODE_IO, "Could not open the profile directory.", directory
-		)
+	if not removed.ok:
+		return removed.wrap("Removing the profile")
 
-	var removed := dir.remove(file.get_file())
-
-	if removed != OK:
-		return DotResult.failure(
-			DotError.from_engine(removed, "Removing the profile")
-		)
-
-	# user:// on the browser is an IndexedDB mirror that only persists when asked.
-	# DotPaths does this for writes; a deletion goes through DirAccess directly, so
-	# it has to be flushed here or the file reappears on the next load.
-	DotWeb.sync_filesystem()
 	return DotResult.success(true)
 
 
@@ -159,30 +154,14 @@ func list_keys() -> DotResult:
 		if not opened.ok:
 			return opened
 
-	var dir := DirAccess.open(directory)
-
-	if dir == null:
-		return DotResult.fail(
-			DotError.CODE_IO, "Could not open the profile directory.", directory
-		)
-
 	var keys := PackedStringArray()
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
-
-	while entry != "":
-		if not dir.current_is_dir() and entry.ends_with(".json"):
-			var key := entry.substr(0, entry.length() - 5)
-			# Anything else in the directory is somebody else's file, or a leftover
-			# temporary. Listing it would hand a malformed key to a caller that
-			# reasonably assumes this returns keys.
-			if DotUserScope.is_well_formed(key):
-				keys.append(key)
-
-		entry = dir.get_next()
-
-	dir.list_dir_end()
+	for key in files().keys():
+		# Anything else in the directory is somebody else's file, or a leftover
+		# temporary. Listing it would hand a malformed key to a caller that
+		# reasonably assumes this returns keys.
+		if DotUserScope.is_well_formed(key):
+			keys.append(key)
 
 	return DotResult.success(keys)
 

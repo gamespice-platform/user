@@ -4,7 +4,7 @@ Player profiles that follow a person between servers without letting those serve
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to profiles.
 
-**The distributable is `addons/dot_user/`.** It requires [GameSpice Core](../dot-core) and nothing else. dot-auth is not a dependency; identities are duck-typed.
+**The distributable is `addons/dot_user/`.** It requires [GameSpice Core](../dot-core) and [GameSpice Save](../dot-save) (`ln -s ../../dot-save/addons/dot_save addons/dot_save`, gitignored; the file store lives there). dot-auth is not a dependency; identities are duck-typed.
 
 ## Read before
 
