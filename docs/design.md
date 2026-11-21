@@ -1,6 +1,6 @@
 # Design
 
-Why dot-user is shaped the way it is. The one-line rules are in [CLAUDE.md](../CLAUDE.md).
+Why gs-user is shaped the way it is. The one-line rules are in [CLAUDE.md](../CLAUDE.md).
 
 ## A server recognises a returning player and nobody else
 
@@ -58,7 +58,7 @@ Both solve the same problem (a per-player record a community running eight serve
 
 `GSUserStoreLocal` writes one file per profile, not one for all: a single file rewrites everything on every change once there are a few thousand returning players, and a crash midway loses every profile rather than one.
 
-`GSUserStoreBackbone` must never hold a credential that works anywhere else: a server holds a token scoped to profiles of players connected to it, never a player's own account token (dot-auth's [tickets](../../dot-auth/docs/tickets.md) are why).
+`GSUserStoreBackbone` must never hold a credential that works anywhere else: a server holds a token scoped to profiles of players connected to it, never a player's own account token (gs-auth's [tickets](../../gs-auth/docs/tickets.md) are why).
 
 ## The backbone protocol
 
@@ -87,12 +87,12 @@ A profile is relayed to every other player in the match, so an unbounded one is 
 
 GameSpice Auth is **not** a dependency. The identity passed to `resolve()` is duck-typed: anything with `uid`, `display_name` and `is_guest`, which `GSAuthIdentity` and GameSpice Server's `GSGuestIdentity` both provide. A hard dependency either way makes both harder to adopt, and this addon has to work on a server with no authentication at all.
 
-`GSUserManager` registers as `dot_user_manager` in `GSRegistry`, which is how GameSpice User Avatar finds it without importing anything. `register_service` defaults to **on** here, unlike most of the family, because a profile manager genuinely is one per process and its consumers have no other way to find it; `service_scope` covers two in one process.
+`GSUserManager` registers as `gs_user_manager` in `GSRegistry`, which is how GameSpice User Avatar finds it without importing anything. `register_service` defaults to **on** here, unlike most of the family, because a profile manager genuinely is one per process and its consumers have no other way to find it; `service_scope` covers two in one process.
 
 ## Deliberately not here
 
-- **Friends, parties, presence.** A social graph, not a profile (dot-friends, dot-party). It needs its own privacy model and a backbone that answers "who is online".
+- **Friends, parties, presence.** A social graph, not a profile (gs-friends, gs-party). It needs its own privacy model and a backbone that answers "who is online".
 - **Game save data.** The preference bounds are far too small on purpose. A platform profile that grew a `kills` field would grow one for every game.
 - **Global name uniqueness.** A backbone that wants unique names enforces it where it can see all of them.
-- **Argon2 or bcrypt.** dot-user never holds a password. Real credentials belong on the backbone; dot-auth's [security notes](../../dot-auth/docs/security.md#two-things-that-are-weaker-than-they-look) say why its own `hash_password` is not adequate for that.
+- **Argon2 or bcrypt.** gs-user never holds a password. Real credentials belong on the backbone; gs-auth's [security notes](../../gs-auth/docs/security.md#two-things-that-are-weaker-than-they-look) say why its own `hash_password` is not adequate for that.
 - **Profile history or audit.** What a name used to be is a store concern, and the backbone protocol is the place for it.

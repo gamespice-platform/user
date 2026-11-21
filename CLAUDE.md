@@ -4,7 +4,7 @@ Player profiles that follow a person between servers without letting those serve
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to profiles.
 
-**The distributable is `addons/dot_user/`.** It requires [GameSpice Core](../dot-core) and [GameSpice Save](../dot-save) (`ln -s ../../dot-save/addons/dot_save addons/dot_save`, gitignored; the file store lives there). dot-auth is not a dependency; identities are duck-typed.
+**The distributable is `addons/gs_user/`.** It requires [GameSpice Core](../gs-core) and [GameSpice Save](../gs-save) (`ln -s ../../gs-save/addons/gs_save addons/gs_save`, gitignored; the file store lives there). gs-auth is not a dependency; identities are duck-typed.
 
 ## Read before
 
@@ -16,15 +16,15 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 | Path | What |
 | --- | --- |
-| `core/dot_user_scope.gd` | `GSUserScope`: the HMAC derivation, `shared()`. The security boundary |
-| `core/dot_user_name.gd` | `GSUserName`: `sanitise`, `validate`, `comparison_key` |
-| `core/dot_user_profile.gd` | `GSUserProfile`: bounds (`validate`), `to_public_dict` |
+| `core/gs_user_scope.gd` | `GSUserScope`: the HMAC derivation, `shared()`. The security boundary |
+| `core/gs_user_name.gd` | `GSUserName`: `sanitise`, `validate`, `comparison_key` |
+| `core/gs_user_profile.gd` | `GSUserProfile`: bounds (`validate`), `to_public_dict` |
 | `store/` | `GSUserStore` (`_fetch` contract), `...Memory`, `...Local` (one file per profile), `...Backbone` (HTTP) |
-| `dot_user_manager.gd` | `GSUserManager`: `resolve`, `key_for`, `_resolve_scope`, `name_filter`, `is_persistable`; registers `dot_user_manager` |
-| `dot_user_config.gd` | `GSUserConfig` (`refuse_duplicate_names`, …) |
+| `gs_user_manager.gd` | `GSUserManager`: `resolve`, `key_for`, `_resolve_scope`, `name_filter`, `is_persistable`; registers `gs_user_manager` |
+| `gs_user_config.gd` | `GSUserConfig` (`refuse_duplicate_names`, …) |
 | `examples/user_demo.tscn` | the suite, offline |
 
-Paths except `examples/` are in `addons/dot_user/`.
+Paths except `examples/` are in `addons/gs_user/`.
 
 ## Running and testing
 
@@ -41,9 +41,9 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 - Generate a scope key only when the file is absent; an unreadable file is a refusal, never a regeneration. [design](docs/design.md#where-the-scope-key-lives-and-what-breaks-if-it-moves)
 - Sanitise and validate are separate; a control character becomes a space; do not tighten `MAX_BYTES`. [design](docs/design.md#display-names-are-the-hostile-input-surface)
 - Offensiveness is the host's `name_filter`, not this addon. [design](docs/design.md#display-names-are-the-hostile-input-surface)
-- No store lookup on the join path; a failed read gives a session-only profile (`created_at == 0`) that is never saved. [design](docs/design.md#storage-rules-shared-with-dot-servers-ban-store)
-- Absent is a successful null from `_fetch`, never an error; a read failure is never "absent". [design](docs/design.md#storage-rules-shared-with-dot-servers-ban-store)
-- A server never holds a player's own account token. [design](docs/design.md#storage-rules-shared-with-dot-servers-ban-store)
+- No store lookup on the join path; a failed read gives a session-only profile (`created_at == 0`) that is never saved. [design](docs/design.md#storage-rules-shared-with-gs-servers-ban-store)
+- Absent is a successful null from `_fetch`, never an error; a read failure is never "absent". [design](docs/design.md#storage-rules-shared-with-gs-servers-ban-store)
+- A server never holds a player's own account token. [design](docs/design.md#storage-rules-shared-with-gs-servers-ban-store)
 - `GSUserStoreBackbone` parents the `GSHttp` it builds to the root in `_open` and frees it in `_close`: an orphan `GSHttp` fails every request with engine error 3 (Unconfigured). `open()` runs one attempt at a time. [design](docs/design.md#the-backbone-protocol)
 - `GSUserProfile.validate` runs on read and write; only `to_public_dict` is relayed. [design](docs/design.md#bounds-and-why-they-are-not-optional)
 - Never import GameSpice Auth; `register_service` is on by default here. [design](docs/design.md#coupling-nothing-is-imported)

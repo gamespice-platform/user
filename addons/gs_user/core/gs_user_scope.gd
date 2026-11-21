@@ -34,7 +34,7 @@ extends RefCounted
 ## mints GameSpice Auth connect tickets, which already holds a private key and already
 ## scopes tickets by audience. A game server consuming a scoped id needs none of this.
 ## It is here rather than in GameSpice Auth because the scoping is a profile concern: it
-## decides which profiles are the same profile, and dot-auth does not have profiles.
+## decides which profiles are the same profile, and gs-auth does not have profiles.
 ##
 ## A standalone server with no issuer derives its own scope from a local secret, which
 ## gives it stable per-player profiles that no other server can correlate: the same

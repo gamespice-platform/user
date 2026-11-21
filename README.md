@@ -5,9 +5,9 @@ Player profiles that follow a person between servers, without letting those serv
 ## Install
 
 1. Get [Godot 4.7](https://godotengine.org/download).
-2. Either use [GameSpice Bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons, or copy `addons/dot_user/` and [GameSpice Core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable both in *Project > Project Settings > Plugins*.
+2. Either use [GameSpice Bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons, or copy `addons/gs_user/` and [GameSpice Core](https://github.com/gamespice-platform/core)'s `addons/gs_core/` into your project and enable both in *Project > Project Settings > Plugins*.
 
-GameSpice Core and [GameSpice Save](https://github.com/gamespice-platform/save) (copy its `addons/dot_save/` beside `dot_core`) are the dependencies. [GameSpice Auth](https://github.com/gamespice-platform/auth), [GameSpice Server](https://github.com/gamespice-platform/server) and [GameSpice User Avatar](https://github.com/gamespice-platform/user-avatar) work with it and none is imported.
+GameSpice Core and [GameSpice Save](https://github.com/gamespice-platform/save) (copy its `addons/gs_save/` beside `gs_core`) are the dependencies. [GameSpice Auth](https://github.com/gamespice-platform/auth), [GameSpice Server](https://github.com/gamespice-platform/server) and [GameSpice User Avatar](https://github.com/gamespice-platform/user-avatar) work with it and none is imported.
 
 ## Use
 
@@ -17,14 +17,14 @@ manager.server_id = "eu-west-1"
 add_child(manager)
 
 # identity is anything with uid, display_name and is_guest, such as GSAuthIdentity,
-# dot-server's GSGuestIdentity, or your own.
+# gs-server's GSGuestIdentity, or your own.
 var resolved := await manager.resolve(identity)
 if resolved.ok:
     var profile: GSUserProfile = resolved.value
     print(profile.display_name)
 ```
 
-Nothing is an autoload. `GSUserManager` registers itself in `GSRegistry` as `dot_user_manager`, which is how GameSpice Server and GameSpice User Avatar find it.
+Nothing is an autoload. `GSUserManager` registers itself in `GSRegistry` as `gs_user_manager`, which is how GameSpice Server and GameSpice User Avatar find it.
 
 ## Scoped ids
 
@@ -49,7 +49,7 @@ It is stable for that player on that server, so bans and profiles work, differen
 
 ## Settings
 
-`GSUserConfig` layers exported defaults, a JSON file, `DOT_USER_*` environment, then `--user-*` command line.
+`GSUserConfig` layers exported defaults, a JSON file, `GS_USER_*` environment, then `--user-*` command line.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |

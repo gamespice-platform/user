@@ -3,7 +3,7 @@ class_name GSUserConfig
 extends GSConfig
 
 ## Everything configurable about profiles. Layered like every [GSConfig]: exported
-## defaults, then a JSON file, then [code]DOT_USER_*[/code] environment variables,
+## defaults, then a JSON file, then [code]GS_USER_*[/code] environment variables,
 ## then [code]--user-*[/code] arguments.
 
 @export_group("Identity")
@@ -104,7 +104,7 @@ extends GSConfig
 
 
 func env_prefix() -> String:
-	return "DOT_USER_"
+	return "GS_USER_"
 
 
 func cli_prefix() -> String:

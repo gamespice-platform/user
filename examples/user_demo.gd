@@ -1,6 +1,6 @@
 extends "res://examples/user_demo_base.gd"
 
-## Exercises everything in dot-user, offline.
+## Exercises everything in gs-user, offline.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/user_demo.tscn
@@ -30,7 +30,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-user self-test")
+	print("gs-user self-test")
 	print("")
 
 	_cleanup()

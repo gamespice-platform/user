@@ -8,10 +8,10 @@ extends EditorPlugin
 ## both impossible. [GSUserManager] registers itself in [GSRegistry] instead, which
 ## anything can look up without importing this addon.
 
-const _ICON := "res://addons/dot_user/icon_placeholder.svg"
+const _ICON := "res://addons/gs_user/icon_placeholder.svg"
 
 const _TYPES := [
-	["GSUserManager", "Node", "res://addons/dot_user/dot_user_manager.gd"],
+	["GSUserManager", "Node", "res://addons/gs_user/gs_user_manager.gd"],
 ]
 
 

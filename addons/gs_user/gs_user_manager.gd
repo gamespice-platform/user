@@ -32,7 +32,7 @@ extends Node
 ## Silently starting empty is how a network blip becomes data loss.
 
 const CHANNEL := "user"
-const SERVICE := &"dot_user_manager"
+const SERVICE := &"gs_user_manager"
 
 ## A key the backbone issued: its own `ScopeKeyRx`. Checked because it becomes a file
 ## name in the local store and a path segment on the backbone.
@@ -58,7 +58,7 @@ signal resolve_degraded(user_key: String, reason: String)
 @export var config: GSUserConfig = null
 
 ## JSON file layered over the exported defaults. Empty disables the file layer.
-@export var config_file: String = "user://dot_user.json"
+@export var config_file: String = "user://gs_user.json"
 
 ## Apply the environment and command-line layers. Wanted on a dedicated server.
 @export var load_layered_config: bool = true
