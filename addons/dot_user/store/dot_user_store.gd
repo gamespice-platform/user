@@ -1,9 +1,9 @@
-class_name DotUserStore
+class_name GSUserStore
 extends RefCounted
 
 ## Where profiles live. Subclass to put them somewhere else.
 ##
-## Deliberately shaped like [code]DotBanStore[/code] in GameSpice Server, including its two
+## Deliberately shaped like [code]GSBanStore[/code] in GameSpice Server, including its two
 ## hard-won rules, because the two solve the same problem: a per-player record that a
 ## community running eight servers wants to share.
 ##
@@ -32,29 +32,29 @@ const CHANNEL := "user.store"
 ## that failed for them would make every new player a support ticket. A failure here
 ## means the store could not answer, which is different and which the manager treats
 ## differently.
-func _fetch(_user_key: String) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INTERNAL, "%s does not implement _fetch()." % _store_name()
+func _fetch(_user_key: String) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INTERNAL, "%s does not implement _fetch()." % _store_name()
 	)
 
 
 ## Writes one profile.
-func _store(_profile: DotUserProfile) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INTERNAL, "%s does not implement _store()." % _store_name()
+func _store(_profile: GSUserProfile) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INTERNAL, "%s does not implement _store()." % _store_name()
 	)
 
 
 ## Removes one profile. Absent is success: the caller wanted it gone.
-func _remove(_user_key: String) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INTERNAL, "%s does not implement _remove()." % _store_name()
+func _remove(_user_key: String) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INTERNAL, "%s does not implement _remove()." % _store_name()
 	)
 
 
 ## Prepares the store. Called once, before any lookup.
-func _open() -> DotResult:
-	return DotResult.success(true)
+func _open() -> GSResult:
+	return GSResult.success(true)
 
 
 func _close() -> void:
@@ -71,7 +71,7 @@ func _writable() -> bool:
 
 
 func _store_name() -> String:
-	return "DotUserStore"
+	return "GSUserStore"
 
 
 # --- Public API ------------------------------------------------------------
@@ -80,7 +80,7 @@ var _opened: bool = false
 
 ## Emitted when an attempt [method open] started finishes, for callers that arrived
 ## while it was in flight.
-signal _open_finished(res: DotResult)
+signal _open_finished(res: GSResult)
 
 var _opening: bool = false
 
@@ -90,9 +90,9 @@ var store_count: int = 0
 var failure_count: int = 0
 
 
-func open() -> DotResult:
+func open() -> GSResult:
 	if _opened:
-		return DotResult.success(true)
+		return GSResult.success(true)
 
 	# [b]One attempt at a time; a second caller waits for the first.[/b] _open can
 	# suspend (the backbone store waits a frame for its HTTP client to enter the tree),
@@ -100,7 +100,7 @@ func open() -> DotResult:
 	# overlapping attempts each queued the same client onto the root, and the second
 	# add_child was an engine error on every server boot.
 	if _opening:
-		var shared: DotResult = await _open_finished
+		var shared: GSResult = await _open_finished
 		return shared
 
 	_opening = true
@@ -137,10 +137,10 @@ func is_writable() -> bool:
 ## The key is checked before the store is touched: a malformed key must never reach a
 ## filesystem path or a URL, and refusing it here means every implementation gets that
 ## guard for free rather than each one remembering it.
-func fetch(user_key: String) -> DotResult:
-	if not DotUserScope.is_well_formed(user_key):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+func fetch(user_key: String) -> GSResult:
+	if not GSUserScope.is_well_formed(user_key):
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That is not a usable profile key.",
 			"'%s'" % user_key.substr(0, 64)
 		)
@@ -152,7 +152,7 @@ func fetch(user_key: String) -> DotResult:
 
 	fetch_count += 1
 
-	var res: DotResult = await _fetch(user_key)
+	var res: GSResult = await _fetch(user_key)
 
 	if not res.ok:
 		failure_count += 1
@@ -165,13 +165,13 @@ func fetch(user_key: String) -> DotResult:
 ## Validation happens here rather than in each implementation so a store cannot be the
 ## thing that lets an oversized or malformed profile through. The profile is relayed
 ## to other players, so this is a boundary worth defending once.
-func store(profile: DotUserProfile) -> DotResult:
+func store(profile: GSUserProfile) -> GSResult:
 	if profile == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No profile to store.")
+		return GSResult.fail(GSError.CODE_INVALID, "No profile to store.")
 
 	if not _writable():
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"This profile store is read-only.",
 			_store_name()
 		)
@@ -187,7 +187,7 @@ func store(profile: DotUserProfile) -> DotResult:
 
 	profile.updated_at = int(Time.get_unix_time_from_system())
 
-	var res: DotResult = await _store(profile)
+	var res: GSResult = await _store(profile)
 
 	if res.ok:
 		store_count += 1
@@ -198,15 +198,15 @@ func store(profile: DotUserProfile) -> DotResult:
 	return res
 
 
-func remove(user_key: String) -> DotResult:
-	if not DotUserScope.is_well_formed(user_key):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "That is not a usable profile key."
+func remove(user_key: String) -> GSResult:
+	if not GSUserScope.is_well_formed(user_key):
+		return GSResult.fail(
+			GSError.CODE_INVALID, "That is not a usable profile key."
 		)
 
 	if not _writable():
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN, "This profile store is read-only."
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN, "This profile store is read-only."
 		)
 
 	if not _opened:
@@ -214,7 +214,7 @@ func remove(user_key: String) -> DotResult:
 		if not opened.ok:
 			return opened
 
-	var res: DotResult = await _remove(user_key)
+	var res: GSResult = await _remove(user_key)
 
 	if not res.ok:
 		failure_count += 1
@@ -231,10 +231,10 @@ func remove(user_key: String) -> DotResult:
 ## point is the rules working and is the caller's to report; a failure here is a player's
 ## name or settings not persisting against a disk or a service, and the player is only
 ## ever told "try again". Only the WRITE paths: a failed [method open] or [method fetch]
-## is reported by [DotUserManager], which degrades the player to a session-only profile
+## is reported by [GSUserManager], which degrades the player to a session-only profile
 ## with a WARN of its own, and a second line here would say the same thing twice.
-func _report_write_failure(what: String, user_key: String, res: DotResult) -> void:
-	DotLog.error(CHANNEL, what, {
+func _report_write_failure(what: String, user_key: String, res: GSResult) -> void:
+	GSLog.error(CHANNEL, what, {
 		"store": _store_name(),
 		"key": user_key,
 		"code": res.code(),

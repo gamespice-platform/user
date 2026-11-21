@@ -12,7 +12,7 @@ var _failed := 0
 var _failures := PackedStringArray()
 
 
-## A stand-in for DotAuthIdentity, which is not installed here. GameSpice User duck-types the
+## A stand-in for GSAuthIdentity, which is not installed here. GameSpice User duck-types the
 ## identity on purpose, so this is the whole contract: uid, display_name, is_guest.
 class FakeIdentity extends RefCounted:
 	var uid: String = ""
@@ -43,7 +43,7 @@ class FakeIdentity extends RefCounted:
 
 
 func _cleanup() -> void:
-	DotPaths.remove_tree(PROFILE_DIR)
+	GSPaths.remove_tree(PROFILE_DIR)
 	if FileAccess.file_exists(SCOPE_KEY):
 		DirAccess.open("user://").remove(SCOPE_KEY.get_file())
 
@@ -75,9 +75,9 @@ func _check(condition: bool, what: String, detail: String = "") -> bool:
 func _test_scope() -> void:
 	_section("scoped identity")
 
-	var key := DotHash.random_bytes(32)
-	var server_a := DotUserScope.with_key("server:a", key)
-	var server_b := DotUserScope.with_key("server:b", key)
+	var key := GSHash.random_bytes(32)
+	var server_a := GSUserScope.with_key("server:a", key)
+	var server_b := GSUserScope.with_key("server:b", key)
 
 	var a1 := server_a.derive("account-1")
 	var a2 := server_a.derive("account-1")
@@ -97,19 +97,19 @@ func _test_scope() -> void:
 	_check(a1.value != other.value, "different accounts differ on one server")
 
 	_check(
-		DotUserScope.is_well_formed(a1.value),
+		GSUserScope.is_well_formed(a1.value),
 		"a derived id is well formed",
 		str(a1.value)
 	)
 	_check(
-		String(a1.value).length() == DotUserScope.ID_LENGTH,
+		String(a1.value).length() == GSUserScope.ID_LENGTH,
 		"and the documented length"
 	)
 
 	# Without a separator, ("ab", "cd") and ("abc", "d") share a MAC input and two
 	# different players share one profile.
-	var s1 := DotUserScope.with_key("ab", key).derive("cd")
-	var s2 := DotUserScope.with_key("abc", key).derive("d")
+	var s1 := GSUserScope.with_key("ab", key).derive("cd")
+	var s2 := GSUserScope.with_key("abc", key).derive("d")
 	_check(
 		s1.value != s2.value,
 		"the scope separator stops a boundary collision",
@@ -118,10 +118,10 @@ func _test_scope() -> void:
 	_test_scope_keys(key, server_a, a1)
 
 
-func _test_scope_keys(key: PackedByteArray, server_a: DotUserScope, a1: DotResult) -> void:
+func _test_scope_keys(key: PackedByteArray, server_a: GSUserScope, a1: GSResult) -> void:
 	# A different key is a different namespace. That is what makes the derivation
 	# non-reversible by anyone who does not hold the key.
-	var stranger := DotUserScope.with_key("server:a", DotHash.random_bytes(32))
+	var stranger := GSUserScope.with_key("server:a", GSHash.random_bytes(32))
 	_check(
 		stranger.derive("account-1").value != a1.value,
 		"a different key derives a different id, so it cannot be recomputed"
@@ -136,14 +136,14 @@ func _test_scope_keys(key: PackedByteArray, server_a: DotUserScope, a1: DotResul
 		"and does not verify against another"
 	)
 
-	var keyless := DotUserScope.new()
+	var keyless := GSUserScope.new()
 	keyless.scope = "server:a"
 	_check(
 		not keyless.derive("account-1").ok,
 		"a scope with no key refuses rather than deriving something useless"
 	)
 	_check(
-		not DotUserScope.with_key("", key).derive("a").ok,
+		not GSUserScope.with_key("", key).derive("a").ok,
 		"an empty scope name is refused"
 	)
 	_check(
@@ -152,16 +152,16 @@ func _test_scope_keys(key: PackedByteArray, server_a: DotUserScope, a1: DotResul
 
 	# The key has to survive a restart, or every profile is renamed.
 	var exported := server_a.export_secret_key()
-	var restored := DotUserScope.from_secret_key("server:a", exported)
+	var restored := GSUserScope.from_secret_key("server:a", exported)
 
 	_check(restored.ok, "a scope key round-trips through storage")
 	_check(
-		restored.ok and (restored.value as DotUserScope).derive("account-1").value == a1.value,
+		restored.ok and (restored.value as GSUserScope).derive("account-1").value == a1.value,
 		"and derives the same ids afterwards"
 	)
 
 	_check(
-		not DotUserScope.from_secret_key("server:a", "c2hvcnQ").ok,
+		not GSUserScope.from_secret_key("server:a", "c2hvcnQ").ok,
 		"a too-short key is refused rather than silently weakening every id"
 	)
 
@@ -174,7 +174,7 @@ func _test_scope_keys(key: PackedByteArray, server_a: DotUserScope, a1: DotResul
 
 	for bad in ["", "short", "has spaces in it here!!", "a".repeat(40)]:
 		_check(
-			not DotUserScope.is_well_formed(bad),
+			not GSUserScope.is_well_formed(bad),
 			"'%s' is not mistaken for an id" % bad.substr(0, 20)
 		)
 	_done()
@@ -184,54 +184,54 @@ func _test_scope_keys(key: PackedByteArray, server_a: DotUserScope, a1: DotResul
 func _test_names() -> void:
 	_section("display names")
 
-	_check(DotUserName.sanitise("  Ada  ") == "Ada", "spaces are trimmed")
+	_check(GSUserName.sanitise("  Ada  ") == "Ada", "spaces are trimmed")
 	_check(
-		DotUserName.sanitise("Ada    Lovelace") == "Ada Lovelace",
+		GSUserName.sanitise("Ada    Lovelace") == "Ada Lovelace",
 		"runs of spaces collapse"
 	)
 
 	# A newline in a name splits one log line into two, one of which the player wrote.
 	_check(
-		not DotUserName.sanitise("Ada\nAdmin").contains("\n"),
+		not GSUserName.sanitise("Ada\nAdmin").contains("\n"),
 		"newlines are removed"
 	)
 	_check(
-		DotUserName.sanitise("Ada\nAdmin") == "Ada Admin",
+		GSUserName.sanitise("Ada\nAdmin") == "Ada Admin",
 		"and become a space rather than joining two words",
-		DotUserName.sanitise("Ada\nAdmin")
+		GSUserName.sanitise("Ada\nAdmin")
 	)
 
 	# U+202E reverses the text after it, so a name rewrites the sentence it is in.
 	var bidi := "Ada%sniamdA" % String.chr(0x202E)
 	_check(
-		not DotUserName.sanitise(bidi).contains(String.chr(0x202E)),
+		not GSUserName.sanitise(bidi).contains(String.chr(0x202E)),
 		"bidirectional overrides are stripped"
 	)
 
 	# Two names that render identically is impersonation a moderator cannot see.
 	var zero_width := "Ad%sa" % String.chr(0x200B)
 	_check(
-		DotUserName.sanitise(zero_width) == "Ada",
+		GSUserName.sanitise(zero_width) == "Ada",
 		"zero-width characters are stripped"
 	)
 
 	var zalgo := "Ada" + String.chr(0x0301).repeat(30)
 	_check(
-		DotUserName.sanitise(zalgo) == "Ada",
+		GSUserName.sanitise(zalgo) == "Ada",
 		"stacked combining marks are stripped"
 	)
 
-	_check(DotUserName.clean("Ada").ok, "an ordinary name is accepted")
-	_check(not DotUserName.clean("A").ok, "a one-character name is refused")
+	_check(GSUserName.clean("Ada").ok, "an ordinary name is accepted")
+	_check(not GSUserName.clean("A").ok, "a one-character name is refused")
 	_check(
-		not DotUserName.clean("a".repeat(40)).ok, "an over-long name is refused"
+		not GSUserName.clean("a".repeat(40)).ok, "an over-long name is refused"
 	)
 	_check(
-		not DotUserName.clean("   ").ok,
+		not GSUserName.clean("   ").ok,
 		"a name that is empty once sanitised is refused"
 	)
 	_check(
-		not DotUserName.clean("!!!...").ok,
+		not GSUserName.clean("!!!...").ok,
 		"a name with no letters is refused, so nobody is invisible on a scoreboard"
 	)
 	_test_name_limits()
@@ -240,45 +240,45 @@ func _test_names() -> void:
 func _test_name_limits() -> void:
 	# The byte bound and the character bound have to agree, or one of them is
 	# unreachable and nobody notices until a name of the wrong shape gets through.
-	var widest := String.chr(0x1F600).repeat(DotUserName.MAX_LENGTH)
+	var widest := String.chr(0x1F600).repeat(GSUserName.MAX_LENGTH)
 	_check(
-		DotUserName.clean(widest).ok,
+		GSUserName.clean(widest).ok,
 		"the widest name inside the character limit is accepted"
 	)
 	_check(
-		widest.to_utf8_buffer().size() <= DotUserName.MAX_BYTES,
+		widest.to_utf8_buffer().size() <= GSUserName.MAX_BYTES,
 		"and is within the byte bound, which the character limit implies",
-		"%d bytes, cap %d" % [widest.to_utf8_buffer().size(), DotUserName.MAX_BYTES]
+		"%d bytes, cap %d" % [widest.to_utf8_buffer().size(), GSUserName.MAX_BYTES]
 	)
 	_check(
-		not DotUserName.clean(
-			String.chr(0x1F600).repeat(DotUserName.MAX_LENGTH + 1)
+		not GSUserName.clean(
+			String.chr(0x1F600).repeat(GSUserName.MAX_LENGTH + 1)
 		).ok,
 		"and one character more is refused"
 	)
 
 	# Name squatting.
 	_check(
-		DotUserName.comparison_key("Ada Lovelace")
-			== DotUserName.comparison_key("adalovelace"),
+		GSUserName.comparison_key("Ada Lovelace")
+			== GSUserName.comparison_key("adalovelace"),
 		"case and spaces do not make a distinct name"
 	)
 	_check(
-		DotUserName.comparison_key("Ada") == DotUserName.comparison_key("Ad4"),
+		GSUserName.comparison_key("Ada") == GSUserName.comparison_key("Ad4"),
 		"nor do lookalike digits"
 	)
 	_check(
-		DotUserName.comparison_key("Ada") != DotUserName.comparison_key("Bob"),
+		GSUserName.comparison_key("Ada") != GSUserName.comparison_key("Bob"),
 		"but genuinely different names stay different"
 	)
 
-	var fallback := DotUserName.fallback_for("abcdefghijklmnopqrstuv")
+	var fallback := GSUserName.fallback_for("abcdefghijklmnopqrstuv")
 	_check(
-		fallback == DotUserName.fallback_for("abcdefghijklmnopqrstuv"),
+		fallback == GSUserName.fallback_for("abcdefghijklmnopqrstuv"),
 		"a fallback name is stable for a player"
 	)
 	_check(
-		DotUserName.validate(fallback).ok, "and is itself a valid name"
+		GSUserName.validate(fallback).ok, "and is itself a valid name"
 	)
 	_done()
 
@@ -287,15 +287,15 @@ func _test_name_limits() -> void:
 func _test_profile() -> void:
 	_section("profiles")
 
-	var key := DotHash.random_bytes(32)
-	var user_key: String = DotUserScope.with_key("s", key).derive("a").value
+	var key := GSHash.random_bytes(32)
+	var user_key: String = GSUserScope.with_key("s", key).derive("a").value
 
-	var p := DotUserProfile.make(user_key, "s")
+	var p := GSUserProfile.make(user_key, "s")
 	p.display_name = "Ada"
 
 	_check(p.validate().ok, "a fresh profile validates")
 
-	var loose := DotUserProfile.make(user_key, "s")
+	var loose := GSUserProfile.make(user_key, "s")
 	loose.user_key = "backbone:12345"
 	_check(
 		not loose.validate().ok,
@@ -318,33 +318,33 @@ func _test_profile() -> void:
 		"an over-long preference name is refused"
 	)
 
-	for i in range(DotUserProfile.MAX_PREFERENCES + 4):
+	for i in range(GSUserProfile.MAX_PREFERENCES + 4):
 		p.set_preference("pref_%d" % i, i)
 
 	_check(
-		p.preferences.size() <= DotUserProfile.MAX_PREFERENCES,
+		p.preferences.size() <= GSUserProfile.MAX_PREFERENCES,
 		"the preference count is capped",
 		"%d" % p.preferences.size()
 	)
 	_check(p.validate().ok, "and the profile is still valid at the cap")
 
-	var round_tripped := DotUserProfile.from_dict(p.to_dict())
+	var round_tripped := GSUserProfile.from_dict(p.to_dict())
 	_check(round_tripped.ok, "a profile round-trips through a dictionary")
 	_check(
 		round_tripped.ok
-			and (round_tripped.value as DotUserProfile).display_name == "Ada",
+			and (round_tripped.value as GSUserProfile).display_name == "Ada",
 		"keeping its name"
 	)
 	_check(
 		round_tripped.ok
-			and (round_tripped.value as DotUserProfile).preferences.size()
+			and (round_tripped.value as GSUserProfile).preferences.size()
 				== p.preferences.size(),
 		"and its preferences"
 	)
 	_test_profile_views(p)
 
 
-func _test_profile_views(p: DotUserProfile) -> void:
+func _test_profile_views(p: GSUserProfile) -> void:
 	# Preferences are private. A profile that relayed them would leak every player's
 	# settings to everyone else in the match.
 	var public := p.to_public_dict()
@@ -357,25 +357,25 @@ func _test_profile_views(p: DotUserProfile) -> void:
 
 	# A file that has been hand-edited, or written by another build.
 	_check(
-		not DotUserProfile.from_dict({}).ok,
+		not GSUserProfile.from_dict({}).ok,
 		"a dictionary with no key is refused"
 	)
 
 	var newer := p.to_dict()
-	newer["version"] = DotUserProfile.SCHEMA_VERSION + 5
+	newer["version"] = GSUserProfile.SCHEMA_VERSION + 5
 	_check(
-		not DotUserProfile.from_dict(newer).ok,
+		not GSUserProfile.from_dict(newer).ok,
 		"a profile from a newer build is refused rather than silently downgraded"
 	)
 
 	var older := p.to_dict()
 	older["version"] = 0
 	older.erase("onboarded")
-	var migrated := DotUserProfile.from_dict(older)
+	var migrated := GSUserProfile.from_dict(older)
 	_check(migrated.ok, "a profile with a missing field is migrated, not rejected")
 	_check(
-		migrated.ok and (migrated.value as DotUserProfile).version
-			== DotUserProfile.SCHEMA_VERSION,
+		migrated.ok and (migrated.value as GSUserProfile).version
+			== GSUserProfile.SCHEMA_VERSION,
 		"and comes back at the current version"
 	)
 	_done()

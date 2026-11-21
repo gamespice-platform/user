@@ -1,4 +1,4 @@
-class_name DotUserName
+class_name GSUserName
 extends RefCounted
 
 ## Validation and sanitising for display names. A static utility; never instantiated.
@@ -27,9 +27,9 @@ extends RefCounted
 ##
 ## [b]This is not a moderation filter.[/b] It says nothing about whether a name is
 ## offensive, which is a policy question with a different answer in every community.
-## [member DotUserManager.name_filter] is the hook for that.
+## [member GSUserManager.name_filter] is the hook for that.
 
-# No log channel: a static validator. It returns a DotResult whose message is written
+# No log channel: a static validator. It returns a GSResult whose message is written
 # for the player, and the caller knows who asked and whether the refusal matters.
 
 const MIN_LENGTH := 2
@@ -57,7 +57,7 @@ const MAX_BYTES := MAX_LENGTH * 4
 
 
 func _init() -> void:
-	push_error("DotUserName is a static utility; do not instantiate it.")
+	push_error("GSUserName is a static utility; do not instantiate it.")
 
 
 ## Strips what is never legitimate and normalises whitespace.
@@ -133,17 +133,17 @@ static func _is_forbidden(c: int) -> bool:
 
 
 ## Whether a [b]sanitised[/b] name is acceptable. Call after [method sanitise].
-static func validate(name: String) -> DotResult:
+static func validate(name: String) -> GSResult:
 	if name.length() < MIN_LENGTH:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That name is too short.",
 			"%d characters, minimum %d" % [name.length(), MIN_LENGTH]
 		)
 
 	if name.length() > MAX_LENGTH:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That name is too long.",
 			"%d characters, maximum %d" % [name.length(), MAX_LENGTH]
 		)
@@ -151,8 +151,8 @@ static func validate(name: String) -> DotResult:
 	var byte_length := name.to_utf8_buffer().size()
 
 	if byte_length > MAX_BYTES:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That name is too long.",
 			"%d bytes, maximum %d" % [byte_length, MAX_BYTES]
 		)
@@ -168,12 +168,12 @@ static func validate(name: String) -> DotResult:
 			break
 
 	if not has_letter:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That name needs at least one letter or number."
 		)
 
-	return DotResult.success(name)
+	return GSResult.success(name)
 
 
 static func _is_punctuation_or_space(c: int) -> bool:
@@ -191,14 +191,14 @@ static func _is_punctuation_or_space(c: int) -> bool:
 
 
 ## Sanitise and validate in one call. The form most callers want.
-static func clean(raw: String) -> DotResult:
+static func clean(raw: String) -> GSResult:
 	var cleaned := sanitise(raw)
 	var checked := validate(cleaned)
 
 	if not checked.ok:
 		return checked
 
-	return DotResult.success(cleaned)
+	return GSResult.success(cleaned)
 
 
 ## A name reduced to a comparison key, for "is this name already taken".
@@ -234,4 +234,4 @@ static func comparison_key(name: String) -> String:
 ## fallback every time. A guest whose name was refused should not be a different
 ## "Player 4821" on every reconnect.
 static func fallback_for(user_key: String) -> String:
-	return "Player %s" % DotHash.sha256_text(user_key).substr(0, 4).to_upper()
+	return "Player %s" % GSHash.sha256_text(user_key).substr(0, 4).to_upper()

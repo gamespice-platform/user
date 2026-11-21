@@ -1,5 +1,5 @@
-class_name DotUserStoreBackbone
-extends DotUserStore
+class_name GSUserStoreBackbone
+extends GSUserStore
 
 ## Profiles over the open HTTP protocol, so they follow a player between servers.
 ##
@@ -31,12 +31,12 @@ var base_url: String = ""
 ##
 ## [b]Not a player credential.[/b] See the class documentation. Never logged, never
 ## sent to a client, and refused from the environment and argv by
-## [method DotUserConfig.sensitive_keys] for the usual reason: both are readable by
+## [method GSUserConfig.sensitive_keys] for the usual reason: both are readable by
 ## other processes and end up in pasted bug reports.
 var server_token: String = ""
 
 ## HTTP client. One is built if none is supplied.
-var http: DotHttp = null
+var http: GSHttp = null
 
 ## Whether writes are permitted. A read-only mirror is a legitimate deployment.
 var read_only: bool = false
@@ -49,7 +49,7 @@ var timeout_sec: float = 8.0
 var _owns_http: bool = false
 
 
-static func at(url: String, token: String) -> DotUserStoreBackbone:
+static func at(url: String, token: String) -> GSUserStoreBackbone:
 	# Not this class's own name. A script that names itself in an expression, loaded after
 	# its base, cuts Godot 4.7.2's exit teardown short and leaks every script loaded before
 	# it. See docs/gdscript-hazards.md, "A script that names itself".
@@ -60,23 +60,23 @@ static func at(url: String, token: String) -> DotUserStoreBackbone:
 
 
 func _store_name() -> String:
-	return "DotUserStoreBackbone"
+	return "GSUserStoreBackbone"
 
 
 func _writable() -> bool:
 	return not read_only
 
 
-func _open() -> DotResult:
+func _open() -> GSResult:
 	if base_url.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The backbone profile store needs a base URL."
 		)
 
 	if not (base_url.begins_with("https://") or base_url.begins_with("http://")):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The backbone URL needs a scheme.",
 			base_url
 		)
@@ -86,27 +86,27 @@ func _open() -> DotResult:
 	# development against a loopback backbone, so it is a warning — but a loud one,
 	# because the failure is silent and total.
 	if base_url.begins_with("http://") and not _is_loopback(base_url):
-		DotLog.warn(
+		GSLog.warn(
 			BACKBONE_CHANNEL,
 			"the backbone URL is plain HTTP; the server token travels in the clear",
 			{"url": base_url}
 		)
 
 	if server_token.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_AUTH,
+		return GSResult.fail(
+			GSError.CODE_AUTH,
 			"The backbone profile store needs a server token."
 		)
 
 	if http == null:
-		http = DotHttp.new()
-		http.name = "DotUserStoreBackboneHttp"
+		http = GSHttp.new()
+		http.name = "GSUserStoreBackboneHttp"
 		_owns_http = true
 
 	http.base_url = base_url
 	http.timeout_sec = timeout_sec
 
-	# [b]DotHttp is a Node and sends through HTTPRequest children, which only work
+	# [b]GSHttp is a Node and sends through HTTPRequest children, which only work
 	# inside the tree.[/b] This store is a RefCounted with no tree of its own, and an
 	# orphan client fails every request with engine error 3 (Unconfigured) -- so the
 	# store did, every fetch and every save, and the manager degraded every player to a
@@ -117,8 +117,8 @@ func _open() -> DotResult:
 		var tree := Engine.get_main_loop() as SceneTree
 
 		if tree == null:
-			return DotResult.fail(
-				DotError.CODE_STATE,
+			return GSResult.fail(
+				GSError.CODE_STATE,
 				"The backbone profile store needs a running scene tree for its HTTP client."
 			)
 
@@ -127,7 +127,7 @@ func _open() -> DotResult:
 
 		await tree.process_frame
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func _close() -> void:
@@ -153,8 +153,8 @@ func _headers() -> Dictionary:
 	}
 
 
-func _fetch(user_key: String) -> DotResult:
-	var res: DotResult = await http.get_json(
+func _fetch(user_key: String) -> GSResult:
+	var res: GSResult = await http.get_json(
 		"/user/%s/profile" % user_key.uri_encode(), _headers()
 	)
 
@@ -163,15 +163,15 @@ func _fetch(user_key: String) -> DotResult:
 		# common case. Anything else is, and the manager treats the two very
 		# differently: absent means create one, failed means keep what is in force.
 		if res.error != null and res.error.http_status == 404:
-			return DotResult.success(null)
+			return GSResult.success(null)
 
 		return res.wrap("Could not read the profile from the backbone.")
 
 	var body: Variant = res.value
 
 	if not (body is Dictionary):
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"The backbone returned something that is not a profile."
 		)
 
@@ -181,11 +181,11 @@ func _fetch(user_key: String) -> DotResult:
 	if data.has("profile") and data["profile"] is Dictionary:
 		data = data["profile"] as Dictionary
 
-	return DotUserProfile.from_dict(data)
+	return GSUserProfile.from_dict(data)
 
 
-func _store(profile: DotUserProfile) -> DotResult:
-	var res: DotResult = await http.put_json(
+func _store(profile: GSUserProfile) -> GSResult:
+	var res: GSResult = await http.put_json(
 		"/user/%s/profile" % profile.user_key.uri_encode(),
 		profile.to_dict(),
 		_headers()
@@ -194,11 +194,11 @@ func _store(profile: DotUserProfile) -> DotResult:
 	if not res.ok:
 		return res.wrap("Could not publish the profile to the backbone.")
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func _remove(user_key: String) -> DotResult:
-	var res: DotResult = await http.request(
+func _remove(user_key: String) -> GSResult:
+	var res: GSResult = await http.request(
 		HTTPClient.METHOD_DELETE,
 		"/user/%s/profile" % user_key.uri_encode(),
 		PackedByteArray(),
@@ -207,10 +207,10 @@ func _remove(user_key: String) -> DotResult:
 
 	if not res.ok:
 		if res.error != null and res.error.http_status == 404:
-			return DotResult.success(true)
+			return GSResult.success(true)
 		return res.wrap("Could not erase the profile.")
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 ## The public half of another player's profile, for a scoreboard.
@@ -218,10 +218,10 @@ func _remove(user_key: String) -> DotResult:
 ## Separate from [method fetch] because it returns less and is permitted for a key
 ## that is not the caller's. A server showing thirty players' names must not need
 ## thirty full profiles, and must not be able to read thirty players' preferences.
-func fetch_public(user_key: String) -> DotResult:
-	if not DotUserScope.is_well_formed(user_key):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "That is not a usable profile key."
+func fetch_public(user_key: String) -> GSResult:
+	if not GSUserScope.is_well_formed(user_key):
+		return GSResult.fail(
+			GSError.CODE_INVALID, "That is not a usable profile key."
 		)
 
 	if not is_open():
@@ -229,16 +229,16 @@ func fetch_public(user_key: String) -> DotResult:
 		if not opened.ok:
 			return opened
 
-	var res: DotResult = await http.get_json(
+	var res: GSResult = await http.get_json(
 		"/user/%s/public" % user_key.uri_encode(), _headers()
 	)
 
 	if not res.ok:
 		if res.error != null and res.error.http_status == 404:
-			return DotResult.success(null)
+			return GSResult.success(null)
 		return res
 
-	return DotResult.success(res.value)
+	return GSResult.success(res.value)
 
 
 func describe() -> Dictionary:

@@ -1,27 +1,27 @@
 @tool
-class_name DotUserManager
+class_name GSUserManager
 extends Node
 
 ## Resolves a player's profile when they join, caches it, and writes it back.
 ##
 ## [codeblock]
-## var manager := DotUserManager.new()
+## var manager := GSUserManager.new()
 ## add_child(manager)
 ##
 ## var resolved := await manager.resolve(identity)
 ## if resolved.ok:
-##     var profile: DotUserProfile = resolved.value
+##     var profile: GSUserProfile = resolved.value
 ## [/codeblock]
 ##
 ## [b]No autoload, and GameSpice Auth is not imported.[/b] The identity a caller passes is
 ## duck-typed: anything with [code]uid[/code], [code]display_name[/code] and
-## [code]is_guest[/code] works, which is what [code]DotAuthIdentity[/code] and
-## GameSpice Server's [code]DotGuestIdentity[/code] both provide. A hard dependency in
+## [code]is_guest[/code] works, which is what [code]GSAuthIdentity[/code] and
+## GameSpice Server's [code]GSGuestIdentity[/code] both provide. A hard dependency in
 ## either direction makes both harder to adopt, and the family rule is that only
 ## GameSpice Core is one.
 ##
 ## [b]The join path never touches the network twice.[/b] A resolved profile stays
-## cached for [member DotUserConfig.cache_ttl_sec] after the player leaves, so a
+## cached for [member GSUserConfig.cache_ttl_sec] after the player leaves, so a
 ## reconnect or a map change does not re-read the store for everyone at once. That is
 ## the same rule GameSpice Server's ban store follows and for the same reason: loads may be
 ## slow, lookups on the join path may not.
@@ -39,13 +39,13 @@ const SERVICE := &"dot_user_manager"
 static var ISSUED_KEY_RX := RegEx.create_from_string("^[A-Za-z0-9_-]{8,64}$")
 
 ## Emitted once a profile is resolved, on the peer that resolved it.
-signal profile_resolved(profile: DotUserProfile)
+signal profile_resolved(profile: GSUserProfile)
 
 ## Emitted when a profile is written back.
-signal profile_saved(profile: DotUserProfile)
+signal profile_saved(profile: GSUserProfile)
 
 ## Emitted when a display name changes, with the old and new values.
-signal name_changed(profile: DotUserProfile, from: String, to: String)
+signal name_changed(profile: GSUserProfile, from: String, to: String)
 
 ## Emitted when a resolve failed and the player got a session-only profile.
 ##
@@ -55,7 +55,7 @@ signal resolve_degraded(user_key: String, reason: String)
 
 @export_group("Configuration")
 
-@export var config: DotUserConfig = null
+@export var config: GSUserConfig = null
 
 ## JSON file layered over the exported defaults. Empty disables the file layer.
 @export var config_file: String = "user://dot_user.json"
@@ -65,7 +65,7 @@ signal resolve_degraded(user_key: String, reason: String)
 
 @export_group("Wiring")
 
-## Register in [DotRegistry] under [constant SERVICE].
+## Register in [GSRegistry] under [constant SERVICE].
 ##
 ## On by default, unlike most of the family: a profile manager is genuinely one per
 ## process, and the components that want it — GameSpice Server's session flow, an avatar
@@ -82,16 +82,16 @@ signal resolve_degraded(user_key: String, reason: String)
 @export var server_id: String = ""
 
 ## Where profiles live. Built from the config when this is left empty.
-var store: DotUserStore = null
+var store: GSUserStore = null
 
 ## The scope profiles are keyed under.
-var scope: DotUserScope = null
+var scope: GSUserScope = null
 
-## An extra check on a display name, beyond validity. Return a failed [DotResult] to
+## An extra check on a display name, beyond validity. Return a failed [GSResult] to
 ## refuse.
 ##
 ## The hook for a word filter, a reserved-name list, or a check against a directory.
-## [DotUserName] deliberately has no opinion about what is offensive, because the
+## [GSUserName] deliberately has no opinion about what is offensive, because the
 ## answer differs in every community.
 var name_filter: Callable = Callable()
 
@@ -99,7 +99,7 @@ var name_filter: Callable = Callable()
 var _cache: Dictionary = {}
 
 ## Guards profile writes per player.
-var _write_limiter: DotRateLimiter = null
+var _write_limiter: GSRateLimiter = null
 
 var _registered_name: StringName = &""
 var _ready_ok: bool = false
@@ -117,13 +117,13 @@ func _ready() -> void:
 	var res := await setup()
 
 	if not res.ok:
-		DotLog.result(CHANNEL, "user manager setup", res)
+		GSLog.result(CHANNEL, "user manager setup", res)
 
 
 ## Builds the config, the scope and the store. Safe to call again after reconfiguring.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if config == null:
-		config = DotUserConfig.new()
+		config = GSUserConfig.new()
 
 	if load_layered_config or config_file != "":
 		var loaded := config.load_layered(config_file)
@@ -151,33 +151,33 @@ func setup() -> DotResult:
 		# Not fatal. A server whose profile store is down should still let people
 		# play, with session-only profiles and a loud warning, rather than refuse
 		# every connection.
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"the profile store did not open; players will get session-only profiles",
 			{"store": store._store_name(), "error": str(opened.error)}
 		)
 
 	if config.writes_per_minute > 0:
-		_write_limiter = DotRateLimiter.new(
+		_write_limiter = GSRateLimiter.new(
 			float(config.writes_per_minute) / 60.0, float(config.writes_per_minute)
 		)
 
 	if register_service:
 		_registered_name = (
-			DotRegistry.scoped_name(SERVICE, service_scope)
+			GSRegistry.scoped_name(SERVICE, service_scope)
 			if service_scope != &"" else SERVICE
 		)
-		DotRegistry.register(_registered_name, self)
+		GSRegistry.register(_registered_name, self)
 
 	_ready_ok = true
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"profile manager ready",
 		{"config": config.describe_summary(), "scope": scope.scope}
 	)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Loads or creates this server's scope, generating a key on first run.
@@ -186,25 +186,25 @@ func setup() -> DotResult:
 ## every profile on the server, so players lose their names, their avatars and their
 ## settings all at once. The file is therefore created only when absent, and a
 ## failure to read an existing one is fatal rather than quietly replaced.
-func _resolve_scope() -> DotResult:
+func _resolve_scope() -> GSResult:
 	var name := config.scope
 
 	if name.strip_edges() == "":
 		# Derived from the server's own id rather than a constant, so two servers
 		# that both forgot to configure a scope do not silently share profiles.
-		name = "server:%s" % (server_id if server_id != "" else DotPlatform.unique_id())
+		name = "server:%s" % (server_id if server_id != "" else GSPlatform.unique_id())
 
 	var path := config.scope_key_file
 
 	if path.strip_edges() == "":
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"no scope key file configured; profiles will not survive a restart"
 		)
-		return DotResult.success(DotUserScope.generated(name))
+		return GSResult.success(GSUserScope.generated(name))
 
 	if FileAccess.file_exists(path):
-		var read := DotPaths.read_text(path)
+		var read := GSPaths.read_text(path)
 
 		if not read.ok:
 			return read.wrap(
@@ -212,47 +212,47 @@ func _resolve_scope() -> DotResult:
 				+ "generate a new one, because that would rename every profile."
 			)
 
-		return DotUserScope.from_secret_key(name, String(read.value).strip_edges())
+		return GSUserScope.from_secret_key(name, String(read.value).strip_edges())
 
-	var fresh := DotUserScope.generated(name)
-	var written := DotPaths.write_text(path, fresh.export_secret_key())
+	var fresh := GSUserScope.generated(name)
+	var written := GSPaths.write_text(path, fresh.export_secret_key())
 
 	if not written.ok:
 		return written.wrap("Could not persist the generated scope key.")
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"generated a scope key; back this file up, losing it renames every profile",
 		{"file": path, "scope": name}
 	)
 
-	return DotResult.success(fresh)
+	return GSResult.success(fresh)
 
 
-func _build_store() -> DotResult:
+func _build_store() -> GSResult:
 	match config.backend:
 		"memory":
-			return DotResult.success(DotUserStoreMemory.new())
+			return GSResult.success(GSUserStoreMemory.new())
 
 		"backbone":
-			var remote := DotUserStoreBackbone.at(
+			var remote := GSUserStoreBackbone.at(
 				config.backbone_url, config.backbone_token
 			)
 			remote.read_only = config.read_only
-			return DotResult.success(remote)
+			return GSResult.success(remote)
 
 		"local":
-			var local := DotUserStoreLocal.at(config.directory)
-			return DotResult.success(local)
+			var local := GSUserStoreLocal.at(config.directory)
+			return GSResult.success(local)
 
-	return DotResult.fail(
-		DotError.CODE_INVALID, "Unknown profile backend.", config.backend
+	return GSResult.fail(
+		GSError.CODE_INVALID, "Unknown profile backend.", config.backend
 	)
 
 
 func _exit_tree() -> void:
 	if _registered_name != &"":
-		DotRegistry.unregister_instance(_registered_name, self)
+		GSRegistry.unregister_instance(_registered_name, self)
 		_registered_name = &""
 
 	if store != null:
@@ -269,20 +269,20 @@ func is_ready() -> bool:
 ##
 ## [b]Where the account id stops travelling.[/b] Everything above this call sees a
 ## scoped id; nothing below it needs the account id again.
-func key_for(identity: Object) -> DotResult:
+func key_for(identity: Object) -> GSResult:
 	if identity == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No identity.")
+		return GSResult.fail(GSError.CODE_INVALID, "No identity.")
 
 	var uid := str(identity.get("uid"))
 
 	if uid.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "That identity has no uid."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "That identity has no uid."
 		)
 
 	if bool(identity.get("is_guest")) and not config.allow_guest_profiles:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"Guest profiles are not enabled on this server.",
 			uid
 		)
@@ -299,26 +299,26 @@ func key_for(identity: Object) -> DotResult:
 		var issued := str((claims as Dictionary)["scoped_key"])
 
 		if ISSUED_KEY_RX.search(issued) != null:
-			return DotResult.success(issued)
+			return GSResult.success(issued)
 
-		return DotResult.fail(
-			DotError.CODE_INVALID, "The backbone issued a key this server cannot use.", issued
+		return GSResult.fail(
+			GSError.CODE_INVALID, "The backbone issued a key this server cannot use.", issued
 		)
 
 	if scope == null:
-		return DotResult.fail(DotError.CODE_STATE, "No scope is configured.")
+		return GSResult.fail(GSError.CODE_STATE, "No scope is configured.")
 
 	return scope.derive(uid)
 
 
 ## Resolves the profile for an identity, creating one if the config allows it.
 ##
-## Returns a [DotUserProfile]. Never returns a failure for "this player is new" — that
+## Returns a [GSUserProfile]. Never returns a failure for "this player is new" — that
 ## is the common case, not an error.
-func resolve(identity: Object) -> DotResult:
+func resolve(identity: Object) -> GSResult:
 	if not _ready_ok:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The profile manager is not ready yet."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The profile manager is not ready yet."
 		)
 
 	var keyed := key_for(identity)
@@ -332,9 +332,9 @@ func resolve(identity: Object) -> DotResult:
 	if cached != null:
 		_touch(cached, identity)
 		profile_resolved.emit(cached)
-		return DotResult.success(cached)
+		return GSResult.success(cached)
 
-	var fetched: DotResult = await _fetch_within(user_key, config.resolve_timeout_sec)
+	var fetched: GSResult = await _fetch_within(user_key, config.resolve_timeout_sec)
 
 	if not fetched.ok:
 		# The store could not answer. A session-only profile keeps the player
@@ -342,39 +342,39 @@ func resolve(identity: Object) -> DotResult:
 		# the store comes back.
 		return _degrade(user_key, identity, str(fetched.error))
 
-	var profile: DotUserProfile = fetched.value
+	var profile: GSUserProfile = fetched.value
 
 	if profile == null:
 		if not config.create_missing:
-			return DotResult.fail(
-				DotError.CODE_FORBIDDEN,
+			return GSResult.fail(
+				GSError.CODE_FORBIDDEN,
 				"There is no profile for this player and this server does not "
 				+ "create them.",
 				user_key
 			)
 
-		profile = DotUserProfile.make(user_key, scope.scope)
+		profile = GSUserProfile.make(user_key, scope.scope)
 		profile.display_name = _initial_name(identity, user_key)
 
 	_touch(profile, identity)
 	_remember(user_key, profile, true)
 
 	profile_resolved.emit(profile)
-	return DotResult.success(profile)
+	return GSResult.success(profile)
 
 
 ## A profile that exists only for this session and must never be stored.
 ##
-## Marked by having no [member DotUserProfile.created_at], which [method save] refuses
+## Marked by having no [member GSUserProfile.created_at], which [method save] refuses
 ## rather than persisting — the point is that the store's real copy is untouched.
-func _degrade(user_key: String, identity: Object, reason: String) -> DotResult:
+func _degrade(user_key: String, identity: Object, reason: String) -> GSResult:
 	degraded_count += 1
 
-	var profile := DotUserProfile.make(user_key, scope.scope)
+	var profile := GSUserProfile.make(user_key, scope.scope)
 	profile.display_name = _initial_name(identity, user_key)
 	profile.created_at = 0
 
-	DotLog.warn(
+	GSLog.warn(
 		CHANNEL,
 		"could not read a profile; the player has a session-only one",
 		{"key": user_key, "reason": reason}
@@ -383,32 +383,32 @@ func _degrade(user_key: String, identity: Object, reason: String) -> DotResult:
 	resolve_degraded.emit(user_key, reason)
 	profile_resolved.emit(profile)
 
-	return DotResult.success(profile)
+	return GSResult.success(profile)
 
 
 ## Whether a profile is the real one rather than a degraded stand-in.
-static func is_persistable(profile: DotUserProfile) -> bool:
+static func is_persistable(profile: GSUserProfile) -> bool:
 	return profile != null and profile.created_at > 0
 
 
 func _initial_name(identity: Object, user_key: String) -> String:
 	var supplied := str(identity.get("display_name"))
-	var cleaned := DotUserName.clean(supplied)
+	var cleaned := GSUserName.clean(supplied)
 
 	if cleaned.ok:
 		return cleaned.value
 
-	return DotUserName.fallback_for(user_key)
+	return GSUserName.fallback_for(user_key)
 
 
-func _touch(profile: DotUserProfile, identity: Object) -> void:
+func _touch(profile: GSUserProfile, identity: Object) -> void:
 	profile.visit_count += 1
 
 	# An authenticated player's name comes from their account, so it is refreshed on
 	# every join. A guest's is theirs to choose, so it is left alone.
 	if not bool(identity.get("is_guest")) and not config.allow_name_changes:
 		var supplied := str(identity.get("display_name"))
-		var cleaned := DotUserName.clean(supplied)
+		var cleaned := GSUserName.clean(supplied)
 
 		if cleaned.ok and cleaned.value != profile.display_name:
 			var previous := profile.display_name
@@ -418,7 +418,7 @@ func _touch(profile: DotUserProfile, identity: Object) -> void:
 
 # --- Cache -----------------------------------------------------------------
 
-func _cached(user_key: String) -> DotUserProfile:
+func _cached(user_key: String) -> GSUserProfile:
 	if not _cache.has(user_key):
 		return null
 
@@ -431,7 +431,7 @@ func _cached(user_key: String) -> DotUserProfile:
 	return entry["profile"]
 
 
-func _remember(user_key: String, profile: DotUserProfile, active: bool) -> void:
+func _remember(user_key: String, profile: GSUserProfile, active: bool) -> void:
 	_cache[user_key] = {
 		"profile": profile,
 		"active": active,
@@ -471,7 +471,7 @@ func _evict_if_needed() -> void:
 		# Everything left is an active player. Not evicting them is correct, but a
 		# cache permanently over its limit is a configuration problem an operator
 		# should hear about rather than discover through memory use.
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"the profile cache is over its limit and everything in it is in use",
 			{"cached": _cache.size(), "max": config.max_cached}
@@ -479,23 +479,23 @@ func _evict_if_needed() -> void:
 
 
 ## Marks a player as gone, starting their cache expiry and saving if configured.
-func release(user_key: String) -> DotResult:
+func release(user_key: String) -> GSResult:
 	if not _cache.has(user_key):
-		return DotResult.success(false)
+		return GSResult.success(false)
 
 	var entry: Dictionary = _cache[user_key]
 	entry["active"] = false
 	entry["expires_at"] = Time.get_ticks_msec() + int(config.cache_ttl_sec * 1000.0)
 
 	if not config.save_on_leave:
-		return DotResult.success(true)
+		return GSResult.success(true)
 
-	var saved: DotResult = await save(entry["profile"])
+	var saved: GSResult = await save(entry["profile"])
 
 	if not saved.ok:
-		DotLog.result(CHANNEL, "saving a profile on leave", saved)
+		GSLog.result(CHANNEL, "saving a profile on leave", saved)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func cached_count() -> int:
@@ -512,36 +512,36 @@ func clear_cache() -> void:
 ##
 ## Rate-limited per player, because every path that reaches this is ultimately driven
 ## by something a client asked for.
-func save(profile: DotUserProfile) -> DotResult:
+func save(profile: GSUserProfile) -> GSResult:
 	if profile == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No profile to save.")
+		return GSResult.fail(GSError.CODE_INVALID, "No profile to save.")
 
 	if not is_persistable(profile):
 		# A degraded, session-only profile. Storing it would overwrite the real one
 		# the store could not read, which is the data loss this whole path exists to
 		# avoid.
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"This is a session-only profile and must not be stored.",
 			profile.user_key
 		)
 
 	if config.read_only:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN, "This server does not write profiles."
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN, "This server does not write profiles."
 		)
 
 	if _write_limiter != null and not _write_limiter.allow(profile.user_key):
 		var wait := _write_limiter.retry_after(profile.user_key)
-		var error := DotError.make(
-			DotError.CODE_RATE_LIMITED,
+		var error := GSError.make(
+			GSError.CODE_RATE_LIMITED,
 			"That is too many profile changes in a row.",
 			"retry in %.1fs" % wait
 		)
 		error.retry_after = wait
-		return DotResult.failure(error)
+		return GSResult.failure(error)
 
-	var stored: DotResult = await store.store(profile)
+	var stored: GSResult = await store.store(profile)
 
 	if stored.ok:
 		profile_saved.emit(profile)
@@ -556,21 +556,21 @@ func save(profile: DotUserProfile) -> DotResult:
 ## else, which is the impersonation GameSpice Auth and GameSpice Server both refuse for the same
 ## reason.
 func set_display_name(
-	profile: DotUserProfile,
+	profile: GSUserProfile,
 	requested: String,
 	is_guest: bool = false
-) -> DotResult:
+) -> GSResult:
 	if profile == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No profile.")
+		return GSResult.fail(GSError.CODE_INVALID, "No profile.")
 
 	if not is_guest and not config.allow_name_changes:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"Your name comes from your account.",
 			profile.user_key
 		)
 
-	var cleaned := DotUserName.clean(requested)
+	var cleaned := GSUserName.clean(requested)
 
 	if not cleaned.ok:
 		return cleaned
@@ -578,8 +578,8 @@ func set_display_name(
 	var name: String = cleaned.value
 
 	if config.refuse_duplicate_names and _name_taken(name, profile.user_key):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Somebody else here is using that name.",
 			name
 		)
@@ -587,7 +587,7 @@ func set_display_name(
 	if name_filter.is_valid():
 		var filtered: Variant = name_filter.call(name, profile)
 
-		if filtered is DotResult and not (filtered as DotResult).ok:
+		if filtered is GSResult and not (filtered as GSResult).ok:
 			return filtered
 
 	var previous := profile.display_name
@@ -595,23 +595,23 @@ func set_display_name(
 
 	name_changed.emit(profile, previous, name)
 
-	return DotResult.success(name)
+	return GSResult.success(name)
 
 
 ## Whether another cached profile is using a confusably similar name.
 ##
-## Only what this server has cached; see [member DotUserConfig.refuse_duplicate_names].
+## Only what this server has cached; see [member GSUserConfig.refuse_duplicate_names].
 func _name_taken(name: String, except_key: String) -> bool:
-	var key := DotUserName.comparison_key(name)
+	var key := GSUserName.comparison_key(name)
 
 	for cached_key in _cache:
 		if cached_key == except_key:
 			continue
 
 		var entry: Dictionary = _cache[cached_key]
-		var other: DotUserProfile = entry["profile"]
+		var other: GSUserProfile = entry["profile"]
 
-		if DotUserName.comparison_key(other.display_name) == key:
+		if GSUserName.comparison_key(other.display_name) == key:
 			return true
 
 	return false
@@ -648,21 +648,21 @@ func describe_lines() -> PackedStringArray:
 	return out
 
 
-## [method DotUserStore.fetch], bounded by [member DotUserConfig.resolve_timeout_sec].
+## [method GSUserStore.fetch], bounded by [member GSUserConfig.resolve_timeout_sec].
 ##
 ## A store that never answers — a backbone mid-deploy, a socket that hangs — must
 ## not hold a player at the profile stage for ever. Past the limit the fetch is
 ## abandoned and the caller degrades to a session-only profile; if the store does
 ## answer later, its answer is dropped, because the player has already been let in.
 ## The knob was documented from the start and enforced by nothing.
-func _fetch_within(user_key: String, seconds: float) -> DotResult:
+func _fetch_within(user_key: String, seconds: float) -> GSResult:
 	var box: Array = []
 	_fetch_into(box, user_key)
 	var deadline := Time.get_ticks_msec() + int(maxf(seconds, 0.1) * 1000.0)
 	while box.is_empty():
 		if Time.get_ticks_msec() >= deadline or not is_inside_tree():
-			return DotResult.fail(
-				DotError.CODE_TIMEOUT, "The profile store did not answer in time.",
+			return GSResult.fail(
+				GSError.CODE_TIMEOUT, "The profile store did not answer in time.",
 				"%.1f s" % seconds
 			)
 		await get_tree().process_frame
@@ -670,5 +670,5 @@ func _fetch_within(user_key: String, seconds: float) -> DotResult:
 
 
 func _fetch_into(box: Array, user_key: String) -> void:
-	var fetched: DotResult = await store.fetch(user_key)
+	var fetched: GSResult = await store.fetch(user_key)
 	box.append(fetched)

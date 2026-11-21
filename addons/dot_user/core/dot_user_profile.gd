@@ -1,5 +1,5 @@
 @tool
-class_name DotUserProfile
+class_name GSUserProfile
 extends Resource
 
 ## What the platform knows about a player, as opposed to what a game does.
@@ -14,12 +14,12 @@ extends Resource
 ## writes a megabyte, and the server sends it to everyone in the match every time
 ## somebody joins.
 ##
-## [b]The key is a scoped id, never an account id.[/b] See [DotUserScope]. A profile
+## [b]The key is a scoped id, never an account id.[/b] See [GSUserScope]. A profile
 ## keyed on the account id would let any two server operators correlate their players
 ## by comparing files.
 
 # No log channel: a value object. validate(), from_dict() and migrate() return a
-# DotResult and DotUserManager, which holds the player and the store, logs what it does
+# GSResult and GSUserManager, which holds the player and the store, logs what it does
 # with one -- a profile it cannot read degrades the player with a WARN there.
 
 ## Bumped when the stored shape changes. See [method migrate].
@@ -54,7 +54,7 @@ const MAX_LOCALE := 16
 
 @export_group("Presentation")
 
-## The name shown to other players. Sanitised and validated by [DotUserName].
+## The name shown to other players. Sanitised and validated by [GSUserName].
 @export var display_name: String = ""
 
 ## Which avatar document to render. Resolved by GameSpice User Avatar, if present.
@@ -100,8 +100,8 @@ const MAX_LOCALE := 16
 @export var preferences: Dictionary = {}
 
 
-static func make(p_user_key: String, p_scope: String = "") -> DotUserProfile:
-	var p := DotUserProfile.new()
+static func make(p_user_key: String, p_scope: String = "") -> GSUserProfile:
+	var p := GSUserProfile.new()
 	p.user_key = p_user_key
 	p.scope = p_scope
 	p.created_at = int(Time.get_unix_time_from_system())
@@ -119,17 +119,17 @@ func preference(key: String, default: Variant = null) -> Variant:
 ## Sets a preference. Returns a failure rather than silently dropping an oversized
 ## value, because a preference that appears to save and does not is worse than one
 ## that refuses.
-func set_preference(key: String, value: Variant) -> DotResult:
+func set_preference(key: String, value: Variant) -> GSResult:
 	if key.strip_edges() == "" or key.length() > MAX_PREFERENCE_KEY:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That preference name is not usable.",
 			"length %d, maximum %d" % [key.length(), MAX_PREFERENCE_KEY]
 		)
 
 	if not preferences.has(key) and preferences.size() >= MAX_PREFERENCES:
-		return DotResult.fail(
-			DotError.CODE_QUOTA,
+		return GSResult.fail(
+			GSError.CODE_QUOTA,
 			"This profile already has as many preferences as it can hold.",
 			"maximum %d" % MAX_PREFERENCES
 		)
@@ -137,8 +137,8 @@ func set_preference(key: String, value: Variant) -> DotResult:
 	var encoded := JSON.stringify(value)
 
 	if encoded.to_utf8_buffer().size() > MAX_PREFERENCE_VALUE:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That preference value is too large.",
 			"%d bytes, maximum %d" % [
 				encoded.to_utf8_buffer().size(), MAX_PREFERENCE_VALUE
@@ -146,7 +146,7 @@ func set_preference(key: String, value: Variant) -> DotResult:
 		)
 
 	preferences[key] = value
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func clear_preference(key: String) -> bool:
@@ -160,36 +160,36 @@ func clear_preference(key: String) -> bool:
 ## [b]Called on read as well as on write.[/b] A file on disk is not trusted input in
 ## the usual sense, but it is input: it may have been written by an older version,
 ## edited by an operator, or restored from a backup of a different server.
-func validate() -> DotResult:
-	if not DotUserScope.is_well_formed(user_key):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+func validate() -> GSResult:
+	if not GSUserScope.is_well_formed(user_key):
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A profile key must be a scoped id.",
 			"got '%s' (%d characters)" % [user_key, user_key.length()]
 		)
 
 	if display_name != "":
-		var name_check := DotUserName.validate(display_name)
+		var name_check := GSUserName.validate(display_name)
 		if not name_check.ok:
 			return name_check.wrap("The profile's display name is not usable.")
 
 	if avatar_id.length() > MAX_AVATAR_ID:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The avatar reference is too long.",
 			"%d characters, maximum %d" % [avatar_id.length(), MAX_AVATAR_ID]
 		)
 
 	if locale.length() > MAX_LOCALE:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The locale tag is too long.",
 			"%d characters, maximum %d" % [locale.length(), MAX_LOCALE]
 		)
 
 	if preferences.size() > MAX_PREFERENCES:
-		return DotResult.fail(
-			DotError.CODE_QUOTA,
+		return GSResult.fail(
+			GSError.CODE_QUOTA,
 			"This profile has too many preferences.",
 			"%d, maximum %d" % [preferences.size(), MAX_PREFERENCES]
 		)
@@ -198,8 +198,8 @@ func validate() -> DotResult:
 		var name := str(key)
 
 		if name.length() > MAX_PREFERENCE_KEY:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"A preference name is too long.",
 				name.substr(0, 40)
 			)
@@ -207,18 +207,18 @@ func validate() -> DotResult:
 		var encoded := JSON.stringify(preferences[key])
 
 		if encoded.to_utf8_buffer().size() > MAX_PREFERENCE_VALUE:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"A preference value is too large.",
 				"'%s' is %d bytes" % [name, encoded.to_utf8_buffer().size()]
 			)
 
 	if visit_count < 0:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "visit_count cannot be negative."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "visit_count cannot be negative."
 		)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 # --- Serialisation ---------------------------------------------------------
@@ -245,13 +245,13 @@ func to_dict() -> Dictionary:
 ## boundary where a hand-edited file, an older version and a hostile HTTP response all
 ## arrive. A missing field takes its default rather than failing: a profile written
 ## before a field existed is not corrupt.
-static func from_dict(data: Dictionary) -> DotResult:
+static func from_dict(data: Dictionary) -> GSResult:
 	if not data.has("user_key"):
-		return DotResult.fail(
-			DotError.CODE_PARSE, "A profile needs a user_key."
+		return GSResult.fail(
+			GSError.CODE_PARSE, "A profile needs a user_key."
 		)
 
-	var p := DotUserProfile.new()
+	var p := GSUserProfile.new()
 
 	p.version = int(data.get("version", 0))
 	p.user_key = str(data.get("user_key", ""))
@@ -275,7 +275,7 @@ static func from_dict(data: Dictionary) -> DotResult:
 	if not valid.ok:
 		return valid.wrap("Stored profile is not usable.")
 
-	return DotResult.success(p)
+	return GSResult.success(p)
 
 
 ## Brings an older profile up to the current schema.
@@ -287,23 +287,23 @@ static func from_dict(data: Dictionary) -> DotResult:
 ##
 ## Empty today because there is only one version. It exists so the first migration is
 ## a change to this function rather than a change to the design.
-func migrate() -> DotResult:
+func migrate() -> GSResult:
 	if version > SCHEMA_VERSION:
 		# Written by a newer build. Refusing is right: the alternative is silently
 		# dropping fields we do not know about and writing the profile back without
 		# them, which loses data the newer build was relying on.
-		return DotResult.fail(
-			DotError.CODE_VERSION,
+		return GSResult.fail(
+			GSError.CODE_VERSION,
 			"This profile was written by a newer version.",
 			"profile v%d, this build understands v%d" % [version, SCHEMA_VERSION]
 		)
 
 	version = SCHEMA_VERSION
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func duplicate_profile() -> DotUserProfile:
-	var copy := DotUserProfile.new()
+func duplicate_profile() -> GSUserProfile:
+	var copy := GSUserProfile.new()
 	var rebuilt := from_dict(to_dict())
 	return rebuilt.value if rebuilt.ok else copy
 
@@ -335,4 +335,4 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotUserProfile(%s '%s')" % [user_key, display_name]
+	return "GSUserProfile(%s '%s')" % [user_key, display_name]

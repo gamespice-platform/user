@@ -1,8 +1,8 @@
 @tool
-class_name DotUserConfig
-extends DotConfig
+class_name GSUserConfig
+extends GSConfig
 
-## Everything configurable about profiles. Layered like every [DotConfig]: exported
+## Everything configurable about profiles. Layered like every [GSConfig]: exported
 ## defaults, then a JSON file, then [code]DOT_USER_*[/code] environment variables,
 ## then [code]--user-*[/code] arguments.
 
@@ -11,7 +11,7 @@ extends DotConfig
 ## The scope profiles on this server are keyed under.
 ##
 ## Two servers sharing a scope share profiles; two servers with different scopes
-## cannot correlate their players at all. See [DotUserScope].
+## cannot correlate their players at all. See [GSUserScope].
 ##
 ## Empty means "derive one from the server's own id", which is the safe default: a
 ## server that forgot to configure this gets isolation rather than accidentally
@@ -120,33 +120,33 @@ func sensitive_keys() -> PackedStringArray:
 	return PackedStringArray(["backbone_token", "scope_key_file"])
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if backend == "backbone":
 		if backbone_url.strip_edges() == "":
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"The backbone backend needs backbone_url."
 			)
 		if backbone_token.strip_edges() == "" and not read_only:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"The backbone backend needs backbone_token to write."
 			)
 
 	if backend == "local" and directory.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "The local backend needs a directory."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "The local backend needs a directory."
 		)
 
 	if read_only and save_on_leave:
 		# Not fatal, but it describes a server that will log a failed write every
 		# time anybody disconnects. Saying so at boot beats a log full of them.
-		DotLog.warn(
+		GSLog.warn(
 			"user.config",
 			"read_only is set but save_on_leave is on; every save will be refused"
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe_summary() -> String:

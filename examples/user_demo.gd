@@ -25,7 +25,7 @@ const CHECKS := 153
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -38,8 +38,8 @@ func _run() -> void:
 	_test_scope()
 	_test_names()
 	_test_profile()
-	await _test_store_contract(DotUserStoreMemory.new(), "memory")
-	await _test_store_contract(DotUserStoreLocal.at(PROFILE_DIR), "local")
+	await _test_store_contract(GSUserStoreMemory.new(), "memory")
+	await _test_store_contract(GSUserStoreLocal.at(PROFILE_DIR), "local")
 	await _test_local_store_specifics()
 	await _test_manager_resolve()
 	await _test_manager_degraded()
@@ -69,36 +69,36 @@ func _run() -> void:
 	get_tree().quit(1 if _failed > 0 else 0)
 
 
-func _test_store_contract(store: DotUserStore, label: String) -> void:
+func _test_store_contract(store: GSUserStore, label: String) -> void:
 	_section("store contract")
 	print("store contract: %s" % label)
 
-	var key := DotHash.random_bytes(32)
-	var scope := DotUserScope.with_key("s", key)
+	var key := GSHash.random_bytes(32)
+	var scope := GSUserScope.with_key("s", key)
 	var user_key: String = scope.derive("account-1").value
 
-	var opened: DotResult = await store.open()
+	var opened: GSResult = await store.open()
 	_check(opened.ok, "[%s] opens" % label)
 
-	var missing: DotResult = await store.fetch(user_key)
+	var missing: GSResult = await store.fetch(user_key)
 	_check(missing.ok, "[%s] a missing profile is not a failure" % label)
 	_check(
 		missing.ok and missing.value == null,
 		"[%s] and comes back as null" % label
 	)
 
-	var p := DotUserProfile.make(user_key, "s")
+	var p := GSUserProfile.make(user_key, "s")
 	p.display_name = "Ada"
 	p.set_preference("theme", "dark")
 
-	var stored: DotResult = await store.store(p)
+	var stored: GSResult = await store.store(p)
 	_check(stored.ok, "[%s] a profile stores" % label)
 
-	var read: DotResult = await store.fetch(user_key)
+	var read: GSResult = await store.fetch(user_key)
 	_check(read.ok and read.value != null, "[%s] and reads back" % label)
 
 	if read.ok and read.value != null:
-		var got: DotUserProfile = read.value
+		var got: GSUserProfile = read.value
 		_check(got.display_name == "Ada", "[%s] with its name" % label)
 		_check(
 			str(got.preference("theme", "")) == "dark",
@@ -108,33 +108,33 @@ func _test_store_contract(store: DotUserStore, label: String) -> void:
 
 		# A caller mutating what it got back must not reach into the store.
 		got.display_name = "Mallory"
-		var again: DotResult = await store.fetch(user_key)
+		var again: GSResult = await store.fetch(user_key)
 		_check(
-			again.ok and (again.value as DotUserProfile).display_name == "Ada",
+			again.ok and (again.value as GSUserProfile).display_name == "Ada",
 			"[%s] the store hands out copies, not references" % label
 		)
 
-	var invalid := DotUserProfile.make(user_key, "s")
+	var invalid := GSUserProfile.make(user_key, "s")
 	invalid.display_name = "x"
-	var refused: DotResult = await store.store(invalid)
+	var refused: GSResult = await store.store(invalid)
 	_check(
 		not refused.ok,
 		"[%s] an invalid profile is refused rather than written" % label
 	)
 
-	var bad_key: DotResult = await store.fetch("../../etc/passwd")
+	var bad_key: GSResult = await store.fetch("../../etc/passwd")
 	_check(
 		not bad_key.ok,
 		"[%s] a malformed key never reaches the store" % label
 	)
 
-	var removed: DotResult = await store.remove(user_key)
+	var removed: GSResult = await store.remove(user_key)
 	_check(removed.ok, "[%s] a profile removes" % label)
 
-	var gone: DotResult = await store.fetch(user_key)
+	var gone: GSResult = await store.fetch(user_key)
 	_check(gone.ok and gone.value == null, "[%s] and is then absent" % label)
 
-	var again_removed: DotResult = await store.remove(user_key)
+	var again_removed: GSResult = await store.remove(user_key)
 	_check(
 		again_removed.ok,
 		"[%s] removing an absent profile is success, not an error" % label
@@ -147,10 +147,10 @@ func _test_store_contract(store: DotUserStore, label: String) -> void:
 func _test_local_store_specifics() -> void:
 	_section("local store")
 
-	var store := DotUserStoreLocal.at(PROFILE_DIR)
-	var scope := DotUserScope.with_key("s", DotHash.random_bytes(32))
+	var store := GSUserStoreLocal.at(PROFILE_DIR)
+	var scope := GSUserScope.with_key("s", GSHash.random_bytes(32))
 
-	var opened: DotResult = await store.open()
+	var opened: GSResult = await store.open()
 	if not _check(opened.ok, "the directory is created"):
 		return
 
@@ -160,12 +160,12 @@ func _test_local_store_specifics() -> void:
 		var user_key: String = scope.derive("account-%d" % i).value
 		keys.append(user_key)
 
-		var p := DotUserProfile.make(user_key, "s")
+		var p := GSUserProfile.make(user_key, "s")
 		p.display_name = "Player %d" % (i + 1)
-		var stored: DotResult = await store.store(p)
+		var stored: GSResult = await store.store(p)
 		_check(stored.ok, "profile %d writes" % i)
 
-	var listed: DotResult = await store.list_keys()
+	var listed: GSResult = await store.list_keys()
 	_check(listed.ok, "the directory lists")
 	_check(
 		listed.ok and (listed.value as PackedStringArray).size() == 3,
@@ -180,7 +180,7 @@ func _test_local_store_specifics() -> void:
 	f.store_string("{ this is not json")
 	f.close()
 
-	var corrupt: DotResult = await store.fetch(keys[0])
+	var corrupt: GSResult = await store.fetch(keys[0])
 	_check(
 		not corrupt.ok,
 		"a corrupt profile is a failure, not an absence"
@@ -191,7 +191,7 @@ func _test_local_store_specifics() -> void:
 	stray.store_string("hello")
 	stray.close()
 
-	var relisted: DotResult = await store.list_keys()
+	var relisted: GSResult = await store.list_keys()
 	_check(
 		relisted.ok and not Array(relisted.value).has("notes"),
 		"a stray file is not listed as a profile key"
@@ -202,14 +202,14 @@ func _test_local_store_specifics() -> void:
 
 
 
-func _make_manager(backend: String = "memory") -> DotUserManager:
-	var manager := DotUserManager.new()
+func _make_manager(backend: String = "memory") -> GSUserManager:
+	var manager := GSUserManager.new()
 	manager.register_service = false
 	manager.load_layered_config = false
 	manager.config_file = ""
 	manager.server_id = "selftest"
 
-	var config := DotUserConfig.new()
+	var config := GSUserConfig.new()
 	config.backend = backend
 	config.directory = PROFILE_DIR
 	config.scope = "server:selftest"
@@ -225,7 +225,7 @@ func _test_manager_resolve() -> void:
 	_section("manager: resolving")
 
 	var manager := _make_manager()
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 
 	if not _check(ready.ok, "the manager sets up", str(ready.error)):
 		manager.queue_free()
@@ -237,18 +237,18 @@ func _test_manager_resolve() -> void:
 	)
 
 	var ada := FakeIdentity.account("acc-1", "Ada")
-	var first: DotResult = await manager.resolve(ada)
+	var first: GSResult = await manager.resolve(ada)
 
 	if not _check(first.ok, "a first-time player resolves", str(first.error)):
 		manager.queue_free()
 		return
 
-	var profile: DotUserProfile = first.value
+	var profile: GSUserProfile = first.value
 
 	_check(profile.display_name == "Ada", "taking their account name")
 	_check(profile.visit_count == 1, "with one visit recorded")
 	_check(
-		DotUserScope.is_well_formed(profile.user_key),
+		GSUserScope.is_well_formed(profile.user_key),
 		"and a scoped key, not an account id"
 	)
 	_check(
@@ -256,24 +256,24 @@ func _test_manager_resolve() -> void:
 		"the account id does not appear in the key"
 	)
 	_check(
-		DotUserManager.is_persistable(profile),
+		GSUserManager.is_persistable(profile),
 		"and the profile is a real one"
 	)
 
-	var saved: DotResult = await manager.save(profile)
+	var saved: GSResult = await manager.save(profile)
 	_check(saved.ok, "it saves")
 
 	# A different scope must not see it. This is the property the whole design is for.
 	var other := _make_manager()
 	other.config.scope = "server:elsewhere"
 	other.config.scope_key_file = SCOPE_KEY
-	var other_ready: DotResult = await other.setup()
+	var other_ready: GSResult = await other.setup()
 
 	if other_ready.ok:
 		other.store = manager.store
-		var elsewhere: DotResult = await other.resolve(ada)
+		var elsewhere: GSResult = await other.resolve(ada)
 		_check(
-			elsewhere.ok and (elsewhere.value as DotUserProfile).user_key
+			elsewhere.ok and (elsewhere.value as GSUserProfile).user_key
 				!= profile.user_key,
 			"the same player on another scope is a different profile"
 		)
@@ -282,20 +282,20 @@ func _test_manager_resolve() -> void:
 	await _test_manager_issued(manager, ada)
 
 
-func _test_manager_issued(manager: DotUserManager, ada: FakeIdentity) -> void:
+func _test_manager_issued(manager: GSUserManager, ada: FakeIdentity) -> void:
 	# A key the backbone issued is used as it is. A key derived here from this server's
 	# own secret is one the backbone can never resolve, so every avatar and profile it
 	# holds would be unreachable.
 	var issued := "Abc_def-123456789012zz"
-	var from_site: DotResult = manager.key_for(FakeIdentity.site(issued, "Bea"))
+	var from_site: GSResult = manager.key_for(FakeIdentity.site(issued, "Bea"))
 	_check(
 		from_site.ok and str(from_site.value) == issued,
 		"a key the backbone issued is the profile key, not re-derived",
 		str(from_site.value) if from_site.ok else str(from_site.error)
 	)
-	var site_profile: DotResult = await manager.resolve(FakeIdentity.site(issued, "Bea"))
+	var site_profile: GSResult = await manager.resolve(FakeIdentity.site(issued, "Bea"))
 	_check(
-		site_profile.ok and (site_profile.value as DotUserProfile).user_key == issued,
+		site_profile.ok and (site_profile.value as GSUserProfile).user_key == issued,
 		"and the profile resolves under it"
 	)
 	_check(
@@ -304,11 +304,11 @@ func _test_manager_issued(manager: DotUserManager, ada: FakeIdentity) -> void:
 	)
 
 	var guest := FakeIdentity.guest("device-1", "Visitor")
-	var guest_resolved: DotResult = await manager.resolve(guest)
+	var guest_resolved: GSResult = await manager.resolve(guest)
 	_check(guest_resolved.ok, "a guest resolves when guests are allowed")
 
 	manager.config.allow_guest_profiles = false
-	var refused: DotResult = await manager.resolve(FakeIdentity.guest("d2", "V"))
+	var refused: GSResult = await manager.resolve(FakeIdentity.guest("d2", "V"))
 	_check(
 		not refused.ok, "and is refused when they are not"
 	)
@@ -316,12 +316,12 @@ func _test_manager_issued(manager: DotUserManager, ada: FakeIdentity) -> void:
 
 	# A returning player gets what was stored, not a fresh profile.
 	manager.clear_cache()
-	var second: DotResult = await manager.resolve(ada)
+	var second: GSResult = await manager.resolve(ada)
 	_check(second.ok, "a returning player resolves")
 	_check(
-		second.ok and (second.value as DotUserProfile).visit_count == 2,
+		second.ok and (second.value as GSUserProfile).visit_count == 2,
 		"and their visit count carries over",
-		"%d" % (second.value as DotUserProfile).visit_count if second.ok else "?"
+		"%d" % (second.value as GSUserProfile).visit_count if second.ok else "?"
 	)
 
 	manager.queue_free()
@@ -332,25 +332,25 @@ func _test_manager_degraded() -> void:
 	_section("manager: a store that cannot answer")
 
 	var manager := _make_manager()
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 
 	if not _check(ready.ok, "sets up"):
 		manager.queue_free()
 		return
 
-	var memory := manager.store as DotUserStoreMemory
+	var memory := manager.store as GSUserStoreMemory
 	var ada := FakeIdentity.account("acc-degraded", "Ada")
 
-	var first: DotResult = await manager.resolve(ada)
-	var real: DotUserProfile = first.value
+	var first: GSResult = await manager.resolve(ada)
+	var real: GSUserProfile = first.value
 	real.set_preference("theme", "dark")
-	var saved: DotResult = await manager.save(real)
+	var saved: GSResult = await manager.save(real)
 	_check(saved.ok, "a real profile is stored first")
 
 	manager.clear_cache()
 	memory.fail_next_fetch = true
 
-	var degraded: DotResult = await manager.resolve(ada)
+	var degraded: GSResult = await manager.resolve(ada)
 
 	_check(degraded.ok, "a failed read still lets the player in")
 	_check(
@@ -358,26 +358,26 @@ func _test_manager_degraded() -> void:
 		"and is counted so an operator can see it"
 	)
 
-	var stand_in: DotUserProfile = degraded.value
+	var stand_in: GSUserProfile = degraded.value
 
 	_check(
-		not DotUserManager.is_persistable(stand_in),
+		not GSUserManager.is_persistable(stand_in),
 		"the stand-in is marked as session-only"
 	)
 
 	# The whole point: storing the stand-in would overwrite the real profile the
 	# store could not read, turning a network blip into data loss.
-	var refused: DotResult = await manager.save(stand_in)
+	var refused: GSResult = await manager.save(stand_in)
 	_check(
 		not refused.ok,
 		"and saving it is refused rather than overwriting the real one"
 	)
 
 	manager.clear_cache()
-	var recovered: DotResult = await manager.resolve(ada)
+	var recovered: GSResult = await manager.resolve(ada)
 	_check(
 		recovered.ok
-			and str((recovered.value as DotUserProfile).preference("theme", "")) == "dark",
+			and str((recovered.value as GSUserProfile).preference("theme", "")) == "dark",
 		"so when the store recovers, the real profile is intact"
 	)
 
@@ -389,15 +389,15 @@ func _test_manager_names() -> void:
 	_section("manager: names")
 
 	var manager := _make_manager()
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 
 	if not _check(ready.ok, "sets up"):
 		manager.queue_free()
 		return
 
 	var ada := FakeIdentity.account("acc-name", "Ada")
-	var resolved: DotResult = await manager.resolve(ada)
-	var profile: DotUserProfile = resolved.value
+	var resolved: GSResult = await manager.resolve(ada)
+	var profile: GSUserProfile = resolved.value
 
 	# An account's name comes from the account. A player who can override it can
 	# appear as somebody else.
@@ -411,8 +411,8 @@ func _test_manager_names() -> void:
 	)
 
 	var guest := FakeIdentity.guest("dev-name", "Visitor")
-	var guest_resolved: DotResult = await manager.resolve(guest)
-	var guest_profile: DotUserProfile = guest_resolved.value
+	var guest_resolved: GSResult = await manager.resolve(guest)
+	var guest_profile: GSUserProfile = guest_resolved.value
 
 	var allowed := manager.set_display_name(guest_profile, "  Grace  ", true)
 	_check(allowed.ok, "a guest can name themselves")
@@ -432,8 +432,8 @@ func _test_manager_names() -> void:
 
 	# Impersonation by confusable name.
 	var squatter := FakeIdentity.guest("dev-squat", "Someone")
-	var squat_resolved: DotResult = await manager.resolve(squatter)
-	var squat_profile: DotUserProfile = squat_resolved.value
+	var squat_resolved: GSResult = await manager.resolve(squatter)
+	var squat_profile: GSUserProfile = squat_resolved.value
 
 	var taken := manager.set_display_name(squat_profile, "Ada", true)
 	_check(
@@ -449,12 +449,12 @@ func _test_manager_names() -> void:
 	await _test_manager_policy(manager, profile, squat_profile)
 
 
-func _test_manager_policy(manager: DotUserManager, profile: DotUserProfile, squat_profile: DotUserProfile) -> void:
+func _test_manager_policy(manager: GSUserManager, profile: GSUserProfile, squat_profile: GSUserProfile) -> void:
 	# The policy hook, which is where a word filter belongs.
-	manager.name_filter = func(name: String, _p: DotUserProfile) -> DotResult:
+	manager.name_filter = func(name: String, _p: GSUserProfile) -> GSResult:
 		if name.to_lower().contains("banned"):
-			return DotResult.fail(DotError.CODE_FORBIDDEN, "Not that one.")
-		return DotResult.success(true)
+			return GSResult.fail(GSError.CODE_FORBIDDEN, "Not that one.")
+		return GSResult.success(true)
 
 	_check(
 		not manager.set_display_name(squat_profile, "bannedword", true).ok,
@@ -470,8 +470,8 @@ func _test_manager_policy(manager: DotUserManager, profile: DotUserProfile, squa
 	var limited := false
 
 	for i in range(30):
-		var res: DotResult = await manager.save(profile)
-		if not res.ok and res.code() == DotError.CODE_RATE_LIMITED:
+		var res: GSResult = await manager.save(profile)
+		if not res.ok and res.code() == GSError.CODE_RATE_LIMITED:
 			limited = true
 			break
 
@@ -485,17 +485,17 @@ func _test_manager_cache() -> void:
 	_section("manager: caching")
 
 	var manager := _make_manager()
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 
 	if not _check(ready.ok, "sets up"):
 		manager.queue_free()
 		return
 
 	var ada := FakeIdentity.account("acc-cache", "Ada")
-	var first: DotResult = await manager.resolve(ada)
+	var first: GSResult = await manager.resolve(ada)
 
 	var before := manager.store.fetch_count
-	var second: DotResult = await manager.resolve(ada)
+	var second: GSResult = await manager.resolve(ada)
 
 	_check(
 		manager.store.fetch_count == before,
@@ -507,13 +507,13 @@ func _test_manager_cache() -> void:
 		"and is the same object, so a change in flight is not lost"
 	)
 
-	var released: DotResult = await manager.release(
-		(first.value as DotUserProfile).user_key
+	var released: GSResult = await manager.release(
+		(first.value as GSUserProfile).user_key
 	)
 	_check(released.ok, "releasing a player succeeds")
 
 	# Still cached, so a reconnect or a map change does not re-read for everybody.
-	var reconnect: DotResult = await manager.resolve(ada)
+	var reconnect: GSResult = await manager.resolve(ada)
 	_check(
 		manager.store.fetch_count == before,
 		"a reconnect inside the cache window still does not touch the store"
@@ -523,7 +523,7 @@ func _test_manager_cache() -> void:
 	manager.config.max_cached = 1
 
 	for i in range(5):
-		var other: DotResult = await manager.resolve(
+		var other: GSResult = await manager.resolve(
 			FakeIdentity.account("filler-%d" % i, "Filler")
 		)
 
@@ -547,19 +547,19 @@ func _test_read_only() -> void:
 	manager.config.read_only = true
 	manager.config.save_on_leave = false
 
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 
 	if not _check(ready.ok, "sets up"):
 		manager.queue_free()
 		return
 
-	var resolved: DotResult = await manager.resolve(
+	var resolved: GSResult = await manager.resolve(
 		FakeIdentity.account("acc-ro", "Ada")
 	)
 
 	_check(resolved.ok, "a player still resolves on a read-only server")
 
-	var refused: DotResult = await manager.save(resolved.value)
+	var refused: GSResult = await manager.save(resolved.value)
 	_check(
 		not refused.ok,
 		"but saving is refused, rather than appearing to work and vanishing"
@@ -569,18 +569,18 @@ func _test_read_only() -> void:
 	_done()
 
 
-class HangingStore extends DotUserStoreMemory:
-	func fetch(_user_key: String) -> DotResult:
+class HangingStore extends GSUserStoreMemory:
+	func fetch(_user_key: String) -> GSResult:
 		for _i in range(1000000):
 			await Engine.get_main_loop().process_frame
-		return DotResult.fail(DotError.CODE_STATE, "never")
+		return GSResult.fail(GSError.CODE_STATE, "never")
 
 
 func _test_manager_timeout() -> void:
 	_section("manager: a store that never answers")
 
 	var manager := _make_manager()
-	var ready: DotResult = await manager.setup()
+	var ready: GSResult = await manager.setup()
 	if not _check(ready.ok, "sets up"):
 		manager.queue_free()
 		return
@@ -590,7 +590,7 @@ func _test_manager_timeout() -> void:
 	manager.clear_cache()
 
 	var started := Time.get_ticks_msec()
-	var res: DotResult = await manager.resolve(FakeIdentity.account("acc-slow", "Slow"))
+	var res: GSResult = await manager.resolve(FakeIdentity.account("acc-slow", "Slow"))
 	var took := Time.get_ticks_msec() - started
 	_check(res.ok, "the player is let in on a session-only profile", str(res.error) if not res.ok else "")
 	_check(took < 3000, "within resolve_timeout_sec rather than for ever", "%d ms" % took)
@@ -603,7 +603,7 @@ func _test_manager_timeout() -> void:
 
 ## The backbone store's HTTP client has to be IN THE TREE to send anything.
 ##
-## [DotHttp] is a Node whose requests are HTTPRequest children, and the store is a
+## [GSHttp] is a Node whose requests are HTTPRequest children, and the store is a
 ## RefCounted. It used to build an orphan client, so every fetch and every save failed
 ## with engine error 3 (Unconfigured) before reaching the network, and every player on a
 ## server using it got a session-only profile. Nothing here needs a backbone: a closed
@@ -612,20 +612,20 @@ func _test_manager_timeout() -> void:
 func _test_backbone_transport() -> void:
 	_section("backbone store transport")
 
-	var no_url := DotUserStoreBackbone.at("", "tmci_test")
-	var refused: DotResult = await no_url.open()
+	var no_url := GSUserStoreBackbone.at("", "tmci_test")
+	var refused: GSResult = await no_url.open()
 	_check(not refused.ok and no_url.http == null, "no URL is refused, and builds no client")
 
-	var store := DotUserStoreBackbone.at("http://127.0.0.1:9", "tmci_test")
+	var store := GSUserStoreBackbone.at("http://127.0.0.1:9", "tmci_test")
 	store.timeout_sec = 3.0
-	var opened: DotResult = await store.open()
+	var opened: GSResult = await store.open()
 	_check(opened.ok, "a loopback URL with a token opens")
 	_check(
 		store.http != null and store.http.is_inside_tree(),
 		"and its HTTP client is in the tree before the first request"
 	)
 
-	var res: DotResult = await store.fetch("AbCdEfGhIjKlMnOpQrStUv")
+	var res: GSResult = await store.fetch("AbCdEfGhIjKlMnOpQrStUv")
 	var why := str(res.error) if res.error != null else ""
 	_check(not res.ok, "an unreachable backbone is a failure, never an absent profile")
 	_check(
@@ -651,8 +651,8 @@ func _test_backbone_transport() -> void:
 			break
 		await get_tree().process_frame
 	_check(
-		results.size() == 2 and slow.attempts == 1 and (results[0] as DotResult).ok
-			and (results[1] as DotResult).ok,
+		results.size() == 2 and slow.attempts == 1 and (results[0] as GSResult).ok
+			and (results[1] as GSResult).ok,
 		"two overlapping opens share one attempt (%d results, %d attempts)" % [
 			results.size(), slow.attempts
 		]
@@ -662,10 +662,10 @@ func _test_backbone_transport() -> void:
 
 
 ## A store whose open suspends for a frame, as the backbone store's does.
-class SlowOpenStore extends DotUserStoreMemory:
+class SlowOpenStore extends GSUserStoreMemory:
 	var attempts := 0
 
-	func _open() -> DotResult:
+	func _open() -> GSResult:
 		attempts += 1
 		await (Engine.get_main_loop() as SceneTree).process_frame
-		return DotResult.success(true)
+		return GSResult.success(true)

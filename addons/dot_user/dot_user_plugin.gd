@@ -5,13 +5,13 @@ extends EditorPlugin
 ##
 ## No autoload, for the family's reason: a process may run a server and a client at
 ## once, or two servers in one editor session, and a singleton profile manager makes
-## both impossible. [DotUserManager] registers itself in [DotRegistry] instead, which
+## both impossible. [GSUserManager] registers itself in [GSRegistry] instead, which
 ## anything can look up without importing this addon.
 
 const _ICON := "res://addons/dot_user/icon_placeholder.svg"
 
 const _TYPES := [
-	["DotUserManager", "Node", "res://addons/dot_user/dot_user_manager.gd"],
+	["GSUserManager", "Node", "res://addons/dot_user/dot_user_manager.gd"],
 ]
 
 

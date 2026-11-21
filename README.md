@@ -12,19 +12,19 @@ GameSpice Core and [GameSpice Save](https://github.com/gamespice-platform/save) 
 ## Use
 
 ```gdscript
-var manager := DotUserManager.new()
+var manager := GSUserManager.new()
 manager.server_id = "eu-west-1"
 add_child(manager)
 
-# identity is anything with uid, display_name and is_guest, such as DotAuthIdentity,
-# dot-server's DotGuestIdentity, or your own.
+# identity is anything with uid, display_name and is_guest, such as GSAuthIdentity,
+# dot-server's GSGuestIdentity, or your own.
 var resolved := await manager.resolve(identity)
 if resolved.ok:
-    var profile: DotUserProfile = resolved.value
+    var profile: GSUserProfile = resolved.value
     print(profile.display_name)
 ```
 
-Nothing is an autoload. `DotUserManager` registers itself in `DotRegistry` as `dot_user_manager`, which is how GameSpice Server and GameSpice User Avatar find it.
+Nothing is an autoload. `GSUserManager` registers itself in `GSRegistry` as `dot_user_manager`, which is how GameSpice Server and GameSpice User Avatar find it.
 
 ## Scoped ids
 
@@ -40,16 +40,16 @@ It is stable for that player on that server, so bans and profiles work, differen
 
 | Class | What it is |
 | --- | --- |
-| `DotUserScope` | The derivation above, plus verification and key persistence. |
-| `DotUserName` | Display-name sanitising and validation. |
-| `DotUserProfile` | The record: versioned, migratable, with a public subset. |
-| `DotUserStore` | Where profiles live: `Memory`, `Local` (JSON files) or `Backbone` (HTTP). |
-| `DotUserManager` | Resolve on join, cache, write back, rename, rate-limit. |
-| `DotUserConfig` | Settings, layered. |
+| `GSUserScope` | The derivation above, plus verification and key persistence. |
+| `GSUserName` | Display-name sanitising and validation. |
+| `GSUserProfile` | The record: versioned, migratable, with a public subset. |
+| `GSUserStore` | Where profiles live: `Memory`, `Local` (JSON files) or `Backbone` (HTTP). |
+| `GSUserManager` | Resolve on join, cache, write back, rename, rate-limit. |
+| `GSUserConfig` | Settings, layered. |
 
 ## Settings
 
-`DotUserConfig` layers exported defaults, a JSON file, `DOT_USER_*` environment, then `--user-*` command line.
+`GSUserConfig` layers exported defaults, a JSON file, `DOT_USER_*` environment, then `--user-*` command line.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -70,7 +70,7 @@ It is stable for that player on that server, so bans and profiles work, differen
 
 ## Display names
 
-A display name is shown to everyone and chosen by the person it is shown for, so `DotUserName` strips bidirectional overrides, zero-width characters, stacked combining marks and control characters, collapses whitespace, and refuses names that are empty, over-long or all punctuation. Whether a name is offensive is a community decision; `DotUserManager.name_filter` is the hook.
+A display name is shown to everyone and chosen by the person it is shown for, so `GSUserName` strips bidirectional overrides, zero-width characters, stacked combining marks and control characters, collapses whitespace, and refuses names that are empty, over-long or all punctuation. Whether a name is offensive is a community decision; `GSUserManager.name_filter` is the hook.
 
 An authenticated player cannot rename themselves by default, because overriding the account name lets them pose as somebody else. Guests have no account name and can pick one.
 

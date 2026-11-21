@@ -1,4 +1,4 @@
-class_name DotUserScope
+class_name GSUserScope
 extends RefCounted
 
 ## Turns "who is this account" into "who is this player, here", without letting the
@@ -42,7 +42,7 @@ extends RefCounted
 
 # No log channel: a keyed derivation. It touches nothing outside the process, and the
 # one event worth an operator's attention -- generating a key that must be backed up --
-# is logged by DotUserManager, which is what writes the file.
+# is logged by GSUserManager, which is what writes the file.
 
 ## Separator between the scope and the account id inside the MAC input.
 ##
@@ -71,8 +71,8 @@ var _key: PackedByteArray = PackedByteArray()
 
 
 ## Builds a scope from a key held as bytes.
-static func with_key(p_scope: String, key: PackedByteArray) -> DotUserScope:
-	var s := DotUserScope.new()
+static func with_key(p_scope: String, key: PackedByteArray) -> GSUserScope:
+	var s := GSUserScope.new()
 	s.scope = p_scope
 	s._key = key
 	return s
@@ -83,16 +83,16 @@ static func with_key(p_scope: String, key: PackedByteArray) -> DotUserScope:
 ## Hashed rather than used raw so a short or low-entropy secret still produces a
 ## full-width key: the MAC is only as good as its key, and an operator will type a
 ## passphrase.
-static func with_secret(p_scope: String, secret: String) -> DotUserScope:
-	return with_key(p_scope, DotHash.sha256_text(secret).to_utf8_buffer())
+static func with_secret(p_scope: String, secret: String) -> GSUserScope:
+	return with_key(p_scope, GSHash.sha256_text(secret).to_utf8_buffer())
 
 
 ## Builds a scope with a freshly generated key. For a standalone server's first run.
 ##
 ## The key must then be [b]persisted[/b]: regenerating it renames every profile on the
 ## server, which reads to players as having lost everything.
-static func generated(p_scope: String) -> DotUserScope:
-	return with_key(p_scope, DotHash.random_bytes(32))
+static func generated(p_scope: String) -> GSUserScope:
+	return with_key(p_scope, GSHash.random_bytes(32))
 
 
 ## The scope participating servers share, for players who opt into being recognised
@@ -102,7 +102,7 @@ static func generated(p_scope: String) -> DotUserScope:
 ## invites code that flips it, and a scope that can be changed after an id has been
 ## issued is a scope that will be. Two scopes means a caller has to hold the one it
 ## means.
-static func shared(key: PackedByteArray) -> DotUserScope:
+static func shared(key: PackedByteArray) -> GSUserScope:
 	return with_key(SCOPE_GLOBAL, key)
 
 
@@ -115,24 +115,24 @@ func has_key() -> bool:
 ## [param account_id] is the real, global identifier: a backbone user id, or a
 ## platform account id.
 ## It never leaves the process that calls this.
-func derive(account_id: String) -> DotResult:
+func derive(account_id: String) -> GSResult:
 	if not has_key():
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"This scope has no key, so it cannot derive an id.",
 			"scope '%s'" % scope
 		)
 
 	if account_id.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "An account id is required.")
+		return GSResult.fail(GSError.CODE_INVALID, "An account id is required.")
 
 	if scope.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "A scope name is required.")
+		return GSResult.fail(GSError.CODE_INVALID, "A scope name is required.")
 
 	var message := "%s%s%s" % [scope, SEPARATOR, account_id]
-	var mac := DotHash.hmac_sha256(_key, message.to_utf8_buffer())
+	var mac := GSHash.hmac_sha256(_key, message.to_utf8_buffer())
 
-	return DotResult.success(DotHash.base64url_encode(mac).substr(0, ID_LENGTH))
+	return GSResult.success(GSHash.base64url_encode(mac).substr(0, ID_LENGTH))
 
 
 ## Whether [param candidate] is the id this scope derives for [param account_id].
@@ -145,7 +145,7 @@ func matches(account_id: String, candidate: String) -> bool:
 	if not derived.ok:
 		return false
 
-	return DotHash.constant_time_equal(
+	return GSHash.constant_time_equal(
 		String(derived.value).to_utf8_buffer(), candidate.to_utf8_buffer()
 	)
 
@@ -180,20 +180,20 @@ static func is_well_formed(id: String) -> bool:
 ## file with restricted permissions, never in a config a client receives, never in a
 ## log, and never in a bug report.
 func export_secret_key() -> String:
-	return DotHash.base64url_encode(_key)
+	return GSHash.base64url_encode(_key)
 
 
-static func from_secret_key(p_scope: String, encoded: String) -> DotResult:
-	var raw := DotHash.base64url_decode(encoded)
+static func from_secret_key(p_scope: String, encoded: String) -> GSResult:
+	var raw := GSHash.base64url_decode(encoded)
 
 	if raw.size() < 16:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A scope key must be at least 16 bytes.",
 			"got %d" % raw.size()
 		)
 
-	return DotResult.success(with_key(p_scope, raw))
+	return GSResult.success(with_key(p_scope, raw))
 
 
 ## Never includes the key. Everything here is safe to log.
@@ -206,4 +206,4 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotUserScope(%s)" % scope
+	return "GSUserScope(%s)" % scope
