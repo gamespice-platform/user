@@ -2,6 +2,8 @@
 
 Player profiles that follow a person between servers, without letting those servers work out it is the same person. A profile holds a display name, an avatar reference and preferences. Storage is pluggable: a JSON directory, an in-memory store, or an open HTTP back end anyone can self-host. A profile is resolved once on join and cached.
 
+GameSpice addon under the MIT licence, built with Claude Code; `examples/user_demo.tscn` runs headless as its test. Player profiles in every game of [Zee's Games](https://zeesgames.com) go through it, on live servers built from GameSpice addons. Bug reports go to the [issue tracker](https://github.com/gamespice-platform/user/issues).
+
 ## Install
 
 1. Get [Godot 4.7](https://godotengine.org/download).
@@ -83,8 +85,27 @@ An authenticated player cannot rename themselves by default, because overriding 
 
 Import the project once, then run `examples/user_demo.tscn` headless with Godot. It exits non-zero on failure.
 
-## Status and licence
+## Used by
 
-Part of the [**GameSpice**](https://gamespice.net) platform: a family of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/gamespice-platform/user/issues) when you hit one.
+All of these games from Zee's Games vendor this addon:
+
+- [Fatal Contact](https://zeesgames.com/fatal-contact)
+- [Airdrift](https://zeesgames.com/airdrift)
+- [Playlot](https://zeesgames.com/playlot)
+- [Hungario](https://zeesgames.com/hungario)
+- [Buses From Hell](https://zeesgames.com/buses-from-hell)
+- [Smash Copter](https://zeesgames.com/smash-copter)
+- [Zombie Zone](https://zeesgames.com/zombie-zone)
+- [Hide n Seek](https://zeesgames.com/hide-n-seek)
+- [Prop Hunt](https://zeesgames.com/prop-hunt)
+- [Murder Mystery](https://zeesgames.com/murder-mystery)
+- [Deathrun](https://zeesgames.com/deathrun)
+- [Wipeout](https://zeesgames.com/wipeout)
+- [Dangerous Delivery](https://zeesgames.com/dangerous-delivery)
+- [Look At Me](https://zeesgames.com/look-at-me)
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
+
+## Licence
 
 MIT licence, see [LICENSE](LICENSE). The only closed part of the [**GameSpice**](https://gamespice.net) platform is the web back end; you can use your own instead of GameSpice's.
